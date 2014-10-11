@@ -1,0 +1,6 @@
+venv
+*.pyc
+*.pid
+output/
+cache
+
