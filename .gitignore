@@ -3,4 +3,6 @@ venv
 *.pid
 output/
 cache
+pelican-themes
+pelican-themes-custom
 
