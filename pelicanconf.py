@@ -4,7 +4,7 @@ from __future__ import unicode_literals
 
 AUTHOR = u'Dan McKean'
 SITENAME = u"Dan's Random Bits"
-SITEURL = 'http://localhost:8000/'
+SITEURL = 'http://localhost:8000'
 
 PATH = 'content'
 
@@ -41,7 +41,7 @@ THEME = 'pelican-themes-custom/pelican-bootstrap3'
 BOOTSTRAP_THEME = 'readable'
 #BOOTSTRAP_THEME = 'simplex'
 #BOOTSTRAP_THEME = 'journal'
-DISQUS_SITENAME = "dansrandombits"
+DISQUS_SITENAME = "dansrandombits-dev"
 
 # Date-based URLs for posts
 ARTICLE_URL = '{date:%Y}/{date:%m}/{date:%d}/{slug}/'
