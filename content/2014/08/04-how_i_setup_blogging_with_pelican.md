@@ -2,7 +2,7 @@ Title: How I setup blogging with Pelican
 Tags: pelican
 Category: Tech
 Slug: blog-setup-with-pelican
-Summary: A howto on setting up Pelican
+Summary: A how-to on setting up Pelican that's already kind of outdated.
 
 For a long while, I've wanted to move to a decent blogging system.  I tried WordPress, but keeping it up-to-date with patches and running MySQL for content just seemed kind of wrong--I wanted something simpler and version controlled and not tied to particular server setup, so eventually I found my way to Pelican.
 

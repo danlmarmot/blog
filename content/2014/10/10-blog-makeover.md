@@ -3,7 +3,7 @@ Tags: blogging
 Category: Tech
 comments: enabled
 Slug: blog-makeover
-Summary: It's taken awhile, but I've finally got this blog working.
+Summary: It's taken awhile, but I've finally got this blog into moderately decent shape.
 
 Pelican was fun to learn, with fairly decent documentation... but some of the "how do I do this" articles were really lacking in details, or just out-of-date.
 
