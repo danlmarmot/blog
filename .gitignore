@@ -4,7 +4,7 @@ venv
 output/
 cache
 pelican-themes
-#pelican-themes-custom
+pelican-themes-custom
 
 
 scratch
