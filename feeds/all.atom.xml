@@ -1,3 +1,507 @@
 <?xml version="1.0" encoding="utf-8"?>
-<feed xmlns="http://www.w3.org/2005/Atom"><title>Dan's Random Bits</title><link href="https://danlmarmot.github.com/io/blog/" rel="alternate"></link><link href="https://danlmarmot.github.com/io/blog/feeds/all.atom.xml" rel="self"></link><id>https://danlmarmot.github.com/io/blog/</id><updated>2014-08-03T12:50:00+02:00</updated><entry><title>First Post!</title><link href="https://danlmarmot.github.com/io/blog/my-first-post.html" rel="alternate"></link><updated>2014-08-03T12:50:00+02:00</updated><author><name>Dan McKean</name></author><id>tag:danlmarmot.github.com,2014-08-03:io/blog/my-first-post.html</id><summary type="html">&lt;h1&gt;Hey, an initial blog post.&lt;/h1&gt;
-&lt;p&gt;Just getting started.  More to come.&lt;/p&gt;</summary><category term="fun"></category></entry></feed>
+<feed xmlns="http://www.w3.org/2005/Atom"><title>Dan's Random Bits</title><link href="https://danlmarmot.github.com/io/blog/" rel="alternate"></link><link href="https://danlmarmot.github.com/io/blog/feeds/all.atom.xml" rel="self"></link><id>https://danlmarmot.github.com/io/blog/</id><updated>2014-10-10T00:00:00-07:00</updated><entry><title>A blog makeover</title><link href="https://danlmarmot.github.com/io/blog/2014/10/10/blog-makeover/" rel="alternate"></link><updated>2014-10-10T00:00:00-07:00</updated><author><name>Dan McKean</name></author><id>tag:danlmarmot.github.com,2014-10-10:io/blog/2014/10/10/blog-makeover/</id><summary type="html">&lt;p&gt;Pelican was fun to learn, with fairly decent documentation... but some of the "how do I do this" articles were really lacking in details, or just out-of-date.&lt;/p&gt;
+&lt;p&gt;I really wanted to get the blog restyled, and Disqus comments enabled, and some date-based organization for posts... so I spent this Friday evening doing just
+that and wandering not-too-far down some rabbit holes before coming up with this passable blog.&lt;/p&gt;
+&lt;p&gt;And since this is a blog, I should really write about how I did that.  I'll save that for future blog posts.&lt;/p&gt;</summary><category term="blogging"></category></entry><entry><title>Provisioning with Vagrant, Ansible, and Packer</title><link href="https://danlmarmot.github.com/io/blog/2014/08/11/provisioning-with-vagrant-ansible-packer/" rel="alternate"></link><updated>2014-08-11T18:55:00-07:00</updated><author><name>Dan McKean</name></author><id>tag:danlmarmot.github.com,2014-08-11:io/blog/2014/08/11/provisioning-with-vagrant-ansible-packer/</id><summary type="html">&lt;p&gt;One big issue in using servers on cloud providers suck as Amazon Web Services, Rackspace, and Google Compute Engine is dealing with their provisioning and deployment--in other words, how to build them out to begin with.
+Sure, you can write lots of Bash scripts, invest in Puppet and Chef training and infrastructure, and script the whole thing out.  I've tried some of those, but generally found them real burdensome and in general they hinder productivity, not improve it.&lt;/p&gt;
+&lt;p&gt;Ansible is a more recent utility that aims to be simpler to use by developers, and I've found it better integrates with my workflows, and is much less difficult to maintain. Ansible works strictly over SSH and doesn't require you to manage any additional infrastructure such as a server--and I like the fact that you don't have to install agents on the machines you manage, so you don't have the tricky problem of bootstrapping with cloud-init.&lt;/p&gt;
+&lt;p&gt;This lengthy blog post focuses on using Ansible with Vagrant and Packer, so that we can automate the provisioning of virtual machines for development, QA, CI, and production.  For development, we'll be using Vagrant, and for cloud deployments we'll be using Packer to create machine images for Amazon.&lt;/p&gt;
+&lt;h2&gt;A few terms first&lt;/h2&gt;
+&lt;p&gt;To get on the same page, here's some terms and conventions I'm using in this article.&lt;/p&gt;
+&lt;h3&gt;Provisioning&lt;/h3&gt;
+&lt;p&gt;Provisioning is the initial configuration and setup of a machine instance, including installation of all pre-requisite packages and software, creation of user and service accounts, and configuration. It's what you have to do before you install any of your applications. Provisioning also generally includes common monitoring tools and utilities to make sure the machine can update its health status or emit metrics to the operations infrastructure.&lt;/p&gt;
+&lt;h3&gt;Deployment&lt;/h3&gt;
+&lt;p&gt;Deployment is simply putting one or more applications on the machine. After provisioning, an initial deployment is typically done.  An image is often created as well, before or after the deployment.&lt;/p&gt;
+&lt;h3&gt;Environment&lt;/h3&gt;
+&lt;p&gt;An environment is a collection of services and machines that depend on each other. Think of the term "environment" as meaning "production environment" or "staging environment" or "local environment". Different development teams use different terms.&lt;/p&gt;
+&lt;h3&gt;Machine Image&lt;/h3&gt;
+&lt;p&gt;Machine images are snapshots of machine, usually with all software and dependencies installed, and perhaps an initial deployment of up-to-date code. They are provider-specific: Amazon machine images aren't the same as VMware machine images or Digital Ocean machine images, and often have to be created with provider-specific tools.&lt;/p&gt;
+&lt;h2&gt;Prep Work&lt;/h2&gt;
+&lt;p&gt;This document is really meant to be used by Mac users, and in particular folks running MacOS 10.9. Vagrant/Packer/Ansible are all oriented towards various Unix flavors, and don't fully support Windows. Other operating systems related to Linux are supported, such as Mac OS X, Ubuntu, Centos, Fedora, AmazonLinux, and versions of FreeBSD.  But I'm just using my Mac.&lt;/p&gt;
+&lt;h2&gt;Step 0 - Clone the Github repository&lt;/h2&gt;
+&lt;p&gt;For this demo, the code's on Github at https://github.com/danlmarmot/demo-ansible-vagrant-packer&lt;/p&gt;
+&lt;p&gt;Clone it onto your local Mac--if you need help at this point, see the Github help pages.&lt;/p&gt;
+&lt;h2&gt;Step 1 - Install Vagrant and VirtualBox&lt;/h2&gt;
+&lt;p&gt;With the source code checked out, change into the checked out git repo with&lt;/p&gt;
+&lt;p&gt;&lt;code&gt;cd demo-ansible-vagrant-packer/&lt;/code&gt;&lt;/p&gt;
+&lt;p&gt;We will not be changing out of this directory, so you're good at this point.&lt;/p&gt;
+&lt;h3&gt;Install VirtualBox and Vagrant&lt;/h3&gt;
+&lt;p&gt;VirtualBox is available at https://www.virtualbox.org/wiki/Downloads.&lt;/p&gt;
+&lt;p&gt;Vagrant is at https://www.vagrantup.com/downloads.html&lt;/p&gt;
+&lt;p&gt;Once you've installed, enter these command to verify your installation&lt;/p&gt;
+&lt;p&gt;At a command prompt type the following and ensure there aren't any errors.&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span class="n"&gt;vagrant&lt;/span&gt;
+&lt;span class="n"&gt;vagrant&lt;/span&gt; &lt;span class="o"&gt;-&lt;/span&gt;&lt;span class="n"&gt;v&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;h3&gt;Initialize Vagrant&lt;/h3&gt;
+&lt;p&gt;Look at the Vagrantfile at the root of your checkout. It should look like this if you've checked it out from Git -- if you haven't, make it look like this:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span class="n"&gt;Vagrant&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="n"&gt;configure&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;VAGRANTFILE_API_VERSION&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt; &lt;span class="k"&gt;do&lt;/span&gt; &lt;span class="o"&gt;|&lt;/span&gt;&lt;span class="n"&gt;config&lt;/span&gt;&lt;span class="o"&gt;|&lt;/span&gt;
+  &lt;span class="n"&gt;config&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="n"&gt;vm&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="n"&gt;box&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="s"&gt;&amp;quot;ubuntu/trusty64&amp;quot;&lt;/span&gt;
+  &lt;span class="n"&gt;config&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="n"&gt;vm&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="n"&gt;network&lt;/span&gt; &lt;span class="o"&gt;:&lt;/span&gt;&lt;span class="n"&gt;private_network&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;ip&lt;/span&gt;&lt;span class="o"&gt;:&lt;/span&gt; &lt;span class="s"&gt;&amp;quot;192.168.111.222&amp;quot;&lt;/span&gt;
+&lt;span class="n"&gt;end&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;This just says launch an Ubuntu Trusty 64-bit image (which is Ubuntu 14.04 LTS, released in April 2014).&lt;/p&gt;
+&lt;p&gt;Launch the VM with 'vagrant up':&lt;/p&gt;
+&lt;p&gt;&lt;code&gt;vagrant up&lt;/code&gt;&lt;/p&gt;
+&lt;p&gt;You should see:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span class="n"&gt;Bringing&lt;/span&gt; &lt;span class="n"&gt;machine&lt;/span&gt; &lt;span class="err"&gt;&amp;#39;&lt;/span&gt;&lt;span class="k"&gt;default&lt;/span&gt;&lt;span class="err"&gt;&amp;#39;&lt;/span&gt; &lt;span class="n"&gt;up&lt;/span&gt; &lt;span class="n"&gt;with&lt;/span&gt; &lt;span class="err"&gt;&amp;#39;&lt;/span&gt;&lt;span class="n"&gt;virtualbox&lt;/span&gt;&lt;span class="err"&gt;&amp;#39;&lt;/span&gt; &lt;span class="n"&gt;provider&lt;/span&gt;&lt;span class="p"&gt;...&lt;/span&gt;
+&lt;span class="o"&gt;==&amp;gt;&lt;/span&gt; &lt;span class="k"&gt;default&lt;/span&gt;&lt;span class="o"&gt;:&lt;/span&gt; &lt;span class="n"&gt;Box&lt;/span&gt; &lt;span class="err"&gt;&amp;#39;&lt;/span&gt;&lt;span class="n"&gt;ubuntu&lt;/span&gt;&lt;span class="o"&gt;/&lt;/span&gt;&lt;span class="n"&gt;trusty64&lt;/span&gt;&lt;span class="err"&gt;&amp;#39;&lt;/span&gt; &lt;span class="n"&gt;could&lt;/span&gt; &lt;span class="n"&gt;not&lt;/span&gt; &lt;span class="n"&gt;be&lt;/span&gt; &lt;span class="n"&gt;found&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt; &lt;span class="n"&gt;Attempting&lt;/span&gt; &lt;span class="n"&gt;to&lt;/span&gt; &lt;span class="n"&gt;find&lt;/span&gt; &lt;span class="n"&gt;and&lt;/span&gt;
+&lt;span class="n"&gt;install&lt;/span&gt;&lt;span class="p"&gt;...&lt;/span&gt;
+    &lt;span class="nl"&gt;default:&lt;/span&gt; &lt;span class="n"&gt;Box&lt;/span&gt; &lt;span class="n"&gt;Provider&lt;/span&gt;&lt;span class="o"&gt;:&lt;/span&gt; &lt;span class="n"&gt;virtualbox&lt;/span&gt;
+    &lt;span class="nl"&gt;default:&lt;/span&gt; &lt;span class="n"&gt;Box&lt;/span&gt; &lt;span class="n"&gt;Version&lt;/span&gt;&lt;span class="o"&gt;:&lt;/span&gt; &lt;span class="o"&gt;&amp;gt;=&lt;/span&gt; &lt;span class="mi"&gt;0&lt;/span&gt;
+&lt;span class="o"&gt;==&amp;gt;&lt;/span&gt; &lt;span class="k"&gt;default&lt;/span&gt;&lt;span class="o"&gt;:&lt;/span&gt; &lt;span class="n"&gt;Loading&lt;/span&gt; &lt;span class="n"&gt;metadata&lt;/span&gt; &lt;span class="k"&gt;for&lt;/span&gt; &lt;span class="n"&gt;box&lt;/span&gt; &lt;span class="err"&gt;&amp;#39;&lt;/span&gt;&lt;span class="n"&gt;ubuntu&lt;/span&gt;&lt;span class="o"&gt;/&lt;/span&gt;&lt;span class="n"&gt;trusty64&lt;/span&gt;&lt;span class="err"&gt;&amp;#39;&lt;/span&gt;
+    &lt;span class="nl"&gt;default:&lt;/span&gt; &lt;span class="n"&gt;URL&lt;/span&gt;&lt;span class="o"&gt;:&lt;/span&gt; &lt;span class="n"&gt;https&lt;/span&gt;&lt;span class="o"&gt;:&lt;/span&gt;&lt;span class="c1"&gt;//vagrantcloud.com/ubuntu/trusty64&lt;/span&gt;
+&lt;span class="o"&gt;==&amp;gt;&lt;/span&gt; &lt;span class="k"&gt;default&lt;/span&gt;&lt;span class="o"&gt;:&lt;/span&gt; &lt;span class="n"&gt;Adding&lt;/span&gt; &lt;span class="n"&gt;box&lt;/span&gt; &lt;span class="err"&gt;&amp;#39;&lt;/span&gt;&lt;span class="n"&gt;ubuntu&lt;/span&gt;&lt;span class="o"&gt;/&lt;/span&gt;&lt;span class="n"&gt;trusty64&lt;/span&gt;&lt;span class="err"&gt;&amp;#39;&lt;/span&gt; &lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;v14&lt;/span&gt;&lt;span class="mf"&gt;.04&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt; &lt;span class="k"&gt;for&lt;/span&gt; &lt;span class="n"&gt;provider&lt;/span&gt;&lt;span class="o"&gt;:&lt;/span&gt; &lt;span class="n"&gt;virtualbox&lt;/span&gt;
+    &lt;span class="nl"&gt;default:&lt;/span&gt; &lt;span class="n"&gt;Downloading&lt;/span&gt;&lt;span class="o"&gt;:&lt;/span&gt;
+&lt;span class="nl"&gt;https:&lt;/span&gt;&lt;span class="c1"&gt;//vagrantcloud.com/ubuntu/trusty64/version/1/provider/virtualbox.box&lt;/span&gt;
+    &lt;span class="nl"&gt;default:&lt;/span&gt; &lt;span class="n"&gt;Progress&lt;/span&gt;&lt;span class="o"&gt;:&lt;/span&gt; &lt;span class="mi"&gt;33&lt;/span&gt;&lt;span class="o"&gt;%&lt;/span&gt; &lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;Rate&lt;/span&gt;&lt;span class="o"&gt;:&lt;/span&gt; &lt;span class="mi"&gt;1274&lt;/span&gt;&lt;span class="n"&gt;k&lt;/span&gt;&lt;span class="o"&gt;/&lt;/span&gt;&lt;span class="n"&gt;s&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;Estimated&lt;/span&gt; &lt;span class="n"&gt;time&lt;/span&gt; &lt;span class="n"&gt;remaining&lt;/span&gt;&lt;span class="o"&gt;:&lt;/span&gt; &lt;span class="mi"&gt;0&lt;/span&gt;&lt;span class="o"&gt;:&lt;/span&gt;&lt;span class="mo"&gt;01&lt;/span&gt;&lt;span class="o"&gt;:&lt;/span&gt;&lt;span class="mo"&gt;03&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+&lt;span class="n"&gt;Connect&lt;/span&gt; &lt;span class="n"&gt;with&lt;/span&gt; &lt;span class="n"&gt;SSH&lt;/span&gt; &lt;span class="n"&gt;to&lt;/span&gt; &lt;span class="n"&gt;the&lt;/span&gt; &lt;span class="n"&gt;Vagrant&lt;/span&gt; &lt;span class="n"&gt;VM&lt;/span&gt;&lt;span class="o"&gt;:&lt;/span&gt;
+&lt;span class="n"&gt;vagrant&lt;/span&gt; &lt;span class="n"&gt;ssh&lt;/span&gt;
+&lt;span class="n"&gt;Welcome&lt;/span&gt; &lt;span class="n"&gt;to&lt;/span&gt; &lt;span class="n"&gt;Ubuntu&lt;/span&gt; &lt;span class="mf"&gt;14.04&lt;/span&gt; &lt;span class="n"&gt;LTS&lt;/span&gt; &lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;GNU&lt;/span&gt;&lt;span class="o"&gt;/&lt;/span&gt;&lt;span class="n"&gt;Linux&lt;/span&gt; &lt;span class="mf"&gt;3.13.0&lt;/span&gt;&lt;span class="o"&gt;-&lt;/span&gt;&lt;span class="mi"&gt;24&lt;/span&gt;&lt;span class="o"&gt;-&lt;/span&gt;&lt;span class="n"&gt;generic&lt;/span&gt; &lt;span class="n"&gt;x86_64&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;Now you've got a Vagrant-managed VM to work with! Exit the SSH prompt with:&lt;/p&gt;
+&lt;p&gt;&lt;code&gt;exit&lt;/code&gt;&lt;/p&gt;
+&lt;h3&gt;Step 2 - Add Ansible to manage the Vagrant VM&lt;/h3&gt;
+&lt;p&gt;We'll be using Ansible, which works over SSH to configure the VM, reading from YAML files to drive the configuration. Ansible doesn't require any software to be installed on the VM (it's agentless).  I put my Ansible YAML files are checked into source control alongside the Vagrantfile into a directory called provision.&lt;/p&gt;
+&lt;p&gt;This Ansible YAML document describing the steps to perform is called a playbook. Vagrant knows how to use Ansible to provision the instance, with a reference to that YAML file in the the Vagrantfile.&lt;/p&gt;
+&lt;p&gt;To make sure things all work, we're going to do a really simple task: create the directory /tmp/foo on the Vagrant VMVM.&lt;/p&gt;
+&lt;h4&gt;Resources&lt;/h4&gt;
+&lt;p&gt;There are a lot of resources on the web that describe these steps.  These are the ones I found handy are handy when you get done with walking through this guide:&lt;/p&gt;
+&lt;p&gt;&lt;a href="http://docs.ansible.com/guide_vagrant.html"&gt;http://docs.ansible.com/guide_vagrant.html&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;&lt;a href="http://docs.vagrantup.com/v2/provisioning/ansible.html"&gt;http://docs.vagrantup.com/v2/provisioning/ansible.html&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;&lt;a href="https://www.digitalocean.com/community/articles/how-to-create-ansible-playbooks-to-automate-system-configuration-on-ubuntu"&gt;https://www.digitalocean.com/community/articles/how-to-create-ansible-playbooks-to-automate-system-configuration-on-ubuntu&lt;/a&gt;&lt;/p&gt;
+&lt;h3&gt;Install Ansible&lt;/h3&gt;
+&lt;p&gt;First, we need to install Ansible, which is a Python package.  Mac OS X 10.9 has Python 2.7 pre-installed.&lt;/p&gt;
+&lt;p&gt;We will install Ansible globally, and not in a virtual environment–it's not a heavy installation, and doesn't require any other software dependencies apart from a few other Python packages. One of these Python packages for SSH will need to be compiled with XCode, so you'll need the XCode (available from the App Store) and the XCode command line tools installed.&lt;/p&gt;
+&lt;p&gt;Run these two commands to install Ansible. The first ensures pip is installed (the standard Python package manager), then the next installs or upgrades Ansible if you've previously installed it.&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span class="n"&gt;sudo&lt;/span&gt; &lt;span class="n"&gt;easy_install&lt;/span&gt; &lt;span class="n"&gt;pip&lt;/span&gt;
+&lt;span class="n"&gt;sudo&lt;/span&gt; &lt;span class="n"&gt;pip&lt;/span&gt; &lt;span class="n"&gt;install&lt;/span&gt; &lt;span class="n"&gt;ansible&lt;/span&gt; &lt;span class="o"&gt;--&lt;/span&gt;&lt;span class="n"&gt;upgrade&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;h3&gt;An Important XCode Gotcha&lt;/h3&gt;
+&lt;p&gt;On MacOS X with XCode 5.1, if you get an error about "-Wno-error=unused-command-line-argument-hard-error-in-future" you can supress the warning by installing Ansible with this ugly command.&lt;/p&gt;
+&lt;p&gt;&lt;code&gt;sudo ARCHFLAGS=-Wno-error=unused-command-line-argument-hard-error-in-future pip install ansible --upgrade&lt;/code&gt;&lt;/p&gt;
+&lt;p&gt;Side note: This is a tedious warning, and if you install other Python packages or Ruby gems that require compiling you'll hit this over and over. You can add this your your bash_profile on your Mac to get around this.&lt;/p&gt;
+&lt;p&gt;&lt;code&gt;echo export ARCHFLAGS=-Wno-error=unused-command-line-argument-hard-error-in-future &amp;gt;&amp;gt;
+~/.bash_profile; source ~/.bash_profile&lt;/code&gt;&lt;/p&gt;
+&lt;h3&gt;Update the source code to step 2&lt;/h3&gt;
+&lt;p&gt;&lt;code&gt;git checkout -f tags/step2&lt;/code&gt;&lt;/p&gt;
+&lt;h3&gt;Add an Ansible playbook&lt;/h3&gt;
+&lt;p&gt;This playbook will be at the top of our directory, and we'll name it "playbook.yml".&lt;/p&gt;
+&lt;p&gt;You can write this out yourself, or just look at what Git checked out.&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span class="o"&gt;---&lt;/span&gt;
+&lt;span class="o"&gt;-&lt;/span&gt; &lt;span class="n"&gt;name&lt;/span&gt;&lt;span class="o"&gt;:&lt;/span&gt; &lt;span class="n"&gt;Verify&lt;/span&gt; &lt;span class="n"&gt;ansible&lt;/span&gt; &lt;span class="n"&gt;works&lt;/span&gt;
+  &lt;span class="nl"&gt;hosts:&lt;/span&gt; &lt;span class="n"&gt;all&lt;/span&gt;
+  &lt;span class="nl"&gt;user:&lt;/span&gt; &lt;span class="n"&gt;vagrant&lt;/span&gt;
+  &lt;span class="nl"&gt;sudo:&lt;/span&gt; &lt;span class="n"&gt;yes&lt;/span&gt;
+  &lt;span class="nl"&gt;gather_facts:&lt;/span&gt; &lt;span class="nb"&gt;false&lt;/span&gt;
+  &lt;span class="nl"&gt;tasks:&lt;/span&gt;
+    &lt;span class="o"&gt;-&lt;/span&gt; &lt;span class="n"&gt;name&lt;/span&gt;&lt;span class="o"&gt;:&lt;/span&gt; &lt;span class="n"&gt;Create&lt;/span&gt; &lt;span class="o"&gt;/&lt;/span&gt;&lt;span class="n"&gt;tmp&lt;/span&gt;&lt;span class="o"&gt;/&lt;/span&gt;&lt;span class="n"&gt;foo&lt;/span&gt;
+      &lt;span class="nl"&gt;file:&lt;/span&gt; &lt;span class="n"&gt;path&lt;/span&gt;&lt;span class="o"&gt;=/&lt;/span&gt;&lt;span class="n"&gt;tmp&lt;/span&gt;&lt;span class="o"&gt;/&lt;/span&gt;&lt;span class="n"&gt;foo&lt;/span&gt; &lt;span class="n"&gt;state&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="n"&gt;directory&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;h3&gt;Update the Vagrantfile with Ansible provisioning&lt;/h3&gt;
+&lt;p&gt;Now let's add the Ansible provisioner to the Vagrantfile--that's the file that tells Vagrant to use Ansible to build out the VM. That entire file should look like this.&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span class="n"&gt;VAGRANTFILE_API_VERSION&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="s"&gt;&amp;quot;2&amp;quot;&lt;/span&gt;
+&lt;span class="n"&gt;Vagrant&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="n"&gt;configure&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;VAGRANTFILE_API_VERSION&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt; &lt;span class="k"&gt;do&lt;/span&gt; &lt;span class="o"&gt;|&lt;/span&gt;&lt;span class="n"&gt;config&lt;/span&gt;&lt;span class="o"&gt;|&lt;/span&gt;
+  &lt;span class="n"&gt;config&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="n"&gt;vm&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="n"&gt;box&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="s"&gt;&amp;quot;ubuntu/trusty64&amp;quot;&lt;/span&gt;
+  &lt;span class="n"&gt;config&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="n"&gt;vm&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="n"&gt;network&lt;/span&gt; &lt;span class="o"&gt;:&lt;/span&gt;&lt;span class="n"&gt;private_network&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;ip&lt;/span&gt;&lt;span class="o"&gt;:&lt;/span&gt; &lt;span class="s"&gt;&amp;quot;192.168.111.222&amp;quot;&lt;/span&gt;
+  &lt;span class="n"&gt;config&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="n"&gt;vm&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="n"&gt;provision&lt;/span&gt; &lt;span class="s"&gt;&amp;quot;ansible&amp;quot;&lt;/span&gt; &lt;span class="k"&gt;do&lt;/span&gt; &lt;span class="o"&gt;|&lt;/span&gt;&lt;span class="n"&gt;ansible&lt;/span&gt;&lt;span class="o"&gt;|&lt;/span&gt;
+    &lt;span class="n"&gt;ansible&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="n"&gt;playbook&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="s"&gt;&amp;quot;playbook.yml&amp;quot;&lt;/span&gt;
+    &lt;span class="n"&gt;ansible&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="n"&gt;extra_vars&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="p"&gt;{&lt;/span&gt; &lt;span class="n"&gt;ansible_ssh_user&lt;/span&gt;&lt;span class="o"&gt;:&lt;/span&gt; &lt;span class="err"&gt;&amp;#39;&lt;/span&gt;&lt;span class="n"&gt;vagrant&lt;/span&gt;&lt;span class="err"&gt;&amp;#39;&lt;/span&gt; &lt;span class="p"&gt;}&lt;/span&gt;
+    &lt;span class="n"&gt;ansible&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="n"&gt;verbose&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="s"&gt;&amp;quot;vv&amp;quot;&lt;/span&gt;
+  &lt;span class="n"&gt;end&lt;/span&gt;
+&lt;span class="n"&gt;end&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;h3&gt;Provision the VM&lt;/h3&gt;
+&lt;p&gt;This is where the magic happens. Run it from a command prompt with&lt;/p&gt;
+&lt;p&gt;&lt;code&gt;vagrant provision&lt;/code&gt;&lt;/p&gt;
+&lt;p&gt;If everything's setup correctly, you'll see output similar to this:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span class="o"&gt;==&amp;gt;&lt;/span&gt; &lt;span class="k"&gt;default&lt;/span&gt;&lt;span class="o"&gt;:&lt;/span&gt; &lt;span class="n"&gt;Running&lt;/span&gt; &lt;span class="n"&gt;provisioner&lt;/span&gt;&lt;span class="o"&gt;:&lt;/span&gt; &lt;span class="n"&gt;ansible&lt;/span&gt;&lt;span class="p"&gt;...&lt;/span&gt;
+&lt;span class="n"&gt;ANSIBLE_FORCE_COLOR&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="nb"&gt;true&lt;/span&gt; &lt;span class="n"&gt;ANSIBLE_HOST_KEY_CHECKING&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="nb"&gt;false&lt;/span&gt; &lt;span class="n"&gt;PYTHONUNBUFFERED&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="mi"&gt;1&lt;/span&gt; &lt;span class="n"&gt;ansible&lt;/span&gt;&lt;span class="o"&gt;-&lt;/span&gt;&lt;span class="n"&gt;playbook&lt;/span&gt; &lt;span class="o"&gt;--&lt;/span&gt;&lt;span class="n"&gt;private&lt;/span&gt;&lt;span class="o"&gt;-&lt;/span&gt;&lt;span class="n"&gt;key&lt;/span&gt;&lt;span class="o"&gt;=/&lt;/span&gt;&lt;span class="n"&gt;Users&lt;/span&gt;&lt;span class="o"&gt;/&lt;/span&gt;&lt;span class="n"&gt;Marmot&lt;/span&gt;&lt;span class="o"&gt;/&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="n"&gt;vagrant&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="n"&gt;d&lt;/span&gt;&lt;span class="o"&gt;/&lt;/span&gt;&lt;span class="n"&gt;insecure_private_key&lt;/span&gt; &lt;span class="o"&gt;--&lt;/span&gt;&lt;span class="n"&gt;user&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="n"&gt;vagrant&lt;/span&gt; &lt;span class="o"&gt;--&lt;/span&gt;&lt;span class="n"&gt;limit&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="err"&gt;&amp;#39;&lt;/span&gt;&lt;span class="k"&gt;default&lt;/span&gt;&lt;span class="err"&gt;&amp;#39;&lt;/span&gt; &lt;span class="o"&gt;--&lt;/span&gt;&lt;span class="n"&gt;inventory&lt;/span&gt;&lt;span class="o"&gt;-&lt;/span&gt;&lt;span class="n"&gt;file&lt;/span&gt;&lt;span class="o"&gt;=/&lt;/span&gt;&lt;span class="n"&gt;Users&lt;/span&gt;&lt;span class="o"&gt;/&lt;/span&gt;&lt;span class="n"&gt;Marmot&lt;/span&gt;&lt;span class="o"&gt;/&lt;/span&gt;&lt;span class="n"&gt;dev&lt;/span&gt;&lt;span class="o"&gt;/&lt;/span&gt;&lt;span class="n"&gt;bb&lt;/span&gt;&lt;span class="o"&gt;-&lt;/span&gt;&lt;span class="n"&gt;danlmarmot&lt;/span&gt;&lt;span class="o"&gt;/&lt;/span&gt;&lt;span class="n"&gt;demo&lt;/span&gt;&lt;span class="o"&gt;-&lt;/span&gt;&lt;span class="n"&gt;ansible&lt;/span&gt;&lt;span class="o"&gt;-&lt;/span&gt;&lt;span class="n"&gt;vagrant&lt;/span&gt;&lt;span class="o"&gt;-&lt;/span&gt;&lt;span class="n"&gt;packer&lt;/span&gt;&lt;span class="o"&gt;/&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="n"&gt;vagrant&lt;/span&gt;&lt;span class="o"&gt;/&lt;/span&gt;&lt;span class="n"&gt;provisioners&lt;/span&gt;&lt;span class="o"&gt;/&lt;/span&gt;&lt;span class="n"&gt;ansible&lt;/span&gt;&lt;span class="o"&gt;/&lt;/span&gt;&lt;span class="n"&gt;inventory&lt;/span&gt; &lt;span class="o"&gt;--&lt;/span&gt;&lt;span class="n"&gt;extra&lt;/span&gt;&lt;span class="o"&gt;-&lt;/span&gt;&lt;span class="n"&gt;vars&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="p"&gt;{&lt;/span&gt;&lt;span class="s"&gt;&amp;quot;ansible_ssh_user&amp;quot;&lt;/span&gt;&lt;span class="o"&gt;:&lt;/span&gt;&lt;span class="s"&gt;&amp;quot;vagrant&amp;quot;&lt;/span&gt;&lt;span class="p"&gt;}&lt;/span&gt; &lt;span class="o"&gt;-&lt;/span&gt;&lt;span class="n"&gt;vv&lt;/span&gt; &lt;span class="n"&gt;playbook&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="n"&gt;yml&lt;/span&gt;
+
+&lt;span class="n"&gt;PLAY&lt;/span&gt; &lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="n"&gt;Verify&lt;/span&gt; &lt;span class="n"&gt;ansible&lt;/span&gt; &lt;span class="n"&gt;works&lt;/span&gt;&lt;span class="p"&gt;]&lt;/span&gt; &lt;span class="o"&gt;***************************************************&lt;/span&gt;
+
+&lt;span class="nl"&gt;TASK:&lt;/span&gt; &lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="n"&gt;Create&lt;/span&gt; &lt;span class="o"&gt;/&lt;/span&gt;&lt;span class="n"&gt;tmp&lt;/span&gt;&lt;span class="o"&gt;/&lt;/span&gt;&lt;span class="n"&gt;foo&lt;/span&gt;&lt;span class="p"&gt;]&lt;/span&gt; &lt;span class="o"&gt;*******************************************************&lt;/span&gt;
+&lt;span class="o"&gt;&amp;lt;&lt;/span&gt;&lt;span class="mf"&gt;127.0.0.1&lt;/span&gt;&lt;span class="o"&gt;&amp;gt;&lt;/span&gt; &lt;span class="n"&gt;REMOTE_MODULE&lt;/span&gt; &lt;span class="n"&gt;file&lt;/span&gt; &lt;span class="n"&gt;path&lt;/span&gt;&lt;span class="o"&gt;=/&lt;/span&gt;&lt;span class="n"&gt;tmp&lt;/span&gt;&lt;span class="o"&gt;/&lt;/span&gt;&lt;span class="n"&gt;foo&lt;/span&gt; &lt;span class="n"&gt;state&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="n"&gt;directory&lt;/span&gt;
+&lt;span class="nl"&gt;changed:&lt;/span&gt; &lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="k"&gt;default&lt;/span&gt;&lt;span class="p"&gt;]&lt;/span&gt; &lt;span class="o"&gt;=&amp;gt;&lt;/span&gt; &lt;span class="p"&gt;{&lt;/span&gt;&lt;span class="s"&gt;&amp;quot;changed&amp;quot;&lt;/span&gt;&lt;span class="o"&gt;:&lt;/span&gt; &lt;span class="nb"&gt;true&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="s"&gt;&amp;quot;gid&amp;quot;&lt;/span&gt;&lt;span class="o"&gt;:&lt;/span&gt; &lt;span class="mi"&gt;0&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="s"&gt;&amp;quot;group&amp;quot;&lt;/span&gt;&lt;span class="o"&gt;:&lt;/span&gt; &lt;span class="s"&gt;&amp;quot;root&amp;quot;&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="s"&gt;&amp;quot;mode&amp;quot;&lt;/span&gt;&lt;span class="o"&gt;:&lt;/span&gt; &lt;span class="s"&gt;&amp;quot;0755&amp;quot;&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="s"&gt;&amp;quot;owner&amp;quot;&lt;/span&gt;&lt;span class="o"&gt;:&lt;/span&gt; &lt;span class="s"&gt;&amp;quot;root&amp;quot;&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="s"&gt;&amp;quot;path&amp;quot;&lt;/span&gt;&lt;span class="o"&gt;:&lt;/span&gt; &lt;span class="s"&gt;&amp;quot;/tmp/foo&amp;quot;&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="s"&gt;&amp;quot;size&amp;quot;&lt;/span&gt;&lt;span class="o"&gt;:&lt;/span&gt; &lt;span class="mi"&gt;4096&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="s"&gt;&amp;quot;state&amp;quot;&lt;/span&gt;&lt;span class="o"&gt;:&lt;/span&gt; &lt;span class="s"&gt;&amp;quot;directory&amp;quot;&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="s"&gt;&amp;quot;uid&amp;quot;&lt;/span&gt;&lt;span class="o"&gt;:&lt;/span&gt; &lt;span class="mi"&gt;0&lt;/span&gt;&lt;span class="p"&gt;}&lt;/span&gt;
+
+&lt;span class="n"&gt;PLAY&lt;/span&gt; &lt;span class="n"&gt;RECAP&lt;/span&gt; &lt;span class="o"&gt;********************************************************************&lt;/span&gt;
+&lt;span class="k"&gt;default&lt;/span&gt;                    &lt;span class="o"&gt;:&lt;/span&gt; &lt;span class="n"&gt;ok&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="mi"&gt;1&lt;/span&gt;    &lt;span class="n"&gt;changed&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="mi"&gt;1&lt;/span&gt;    &lt;span class="n"&gt;unreachable&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="mi"&gt;0&lt;/span&gt;    &lt;span class="n"&gt;failed&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="mi"&gt;0&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;At this point Ansible and Vagrant are working with each other. That's a big win, and now we can start doing more complicated things.&lt;/p&gt;
+&lt;h4&gt;Troubleshooting "vagrant provision"&lt;/h4&gt;
+&lt;h5&gt;Error: "VM not created"&lt;/h5&gt;
+&lt;p&gt;If you get a message similar to this:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span class="n"&gt;vagrant&lt;/span&gt; &lt;span class="n"&gt;provision&lt;/span&gt;
+&lt;span class="o"&gt;==&amp;gt;&lt;/span&gt; &lt;span class="k"&gt;default&lt;/span&gt;&lt;span class="o"&gt;:&lt;/span&gt; &lt;span class="n"&gt;VM&lt;/span&gt; &lt;span class="n"&gt;not&lt;/span&gt; &lt;span class="n"&gt;created&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt; &lt;span class="n"&gt;Moving&lt;/span&gt; &lt;span class="n"&gt;on&lt;/span&gt;&lt;span class="p"&gt;...&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;Fix it by:&lt;/p&gt;
+&lt;p&gt;&lt;code&gt;vagrant up&lt;/code&gt;&lt;/p&gt;
+&lt;p&gt;This is just simply because the Vagrant VM isn't running, so it can't receive the &lt;code&gt;vagrant provision&lt;/code&gt; command&lt;/p&gt;
+&lt;h3&gt;Verify that the provisioning worked&lt;/h3&gt;
+&lt;p&gt;Now let's verify this worked by SSH-ing into the Vagrant VM.&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span class="n"&gt;vagrant&lt;/span&gt; &lt;span class="n"&gt;ssh&lt;/span&gt;
+&lt;span class="n"&gt;vagrant&lt;/span&gt;&lt;span class="err"&gt;@&lt;/span&gt;&lt;span class="n"&gt;vagrant&lt;/span&gt;&lt;span class="o"&gt;-&lt;/span&gt;&lt;span class="n"&gt;ubuntu&lt;/span&gt;&lt;span class="o"&gt;-&lt;/span&gt;&lt;span class="n"&gt;trusty&lt;/span&gt;&lt;span class="o"&gt;-&lt;/span&gt;&lt;span class="mi"&gt;64&lt;/span&gt;&lt;span class="o"&gt;:~&lt;/span&gt;&lt;span class="err"&gt;$&lt;/span&gt; &lt;span class="n"&gt;ls&lt;/span&gt; &lt;span class="o"&gt;/&lt;/span&gt;&lt;span class="n"&gt;tmp&lt;/span&gt;
+&lt;span class="n"&gt;foo&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;Exit out of the SSH session&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span class="n"&gt;vagrant&lt;/span&gt;&lt;span class="err"&gt;@&lt;/span&gt;&lt;span class="n"&gt;vagrant&lt;/span&gt;&lt;span class="o"&gt;-&lt;/span&gt;&lt;span class="n"&gt;ubuntu&lt;/span&gt;&lt;span class="o"&gt;-&lt;/span&gt;&lt;span class="n"&gt;trusty&lt;/span&gt;&lt;span class="o"&gt;-&lt;/span&gt;&lt;span class="mi"&gt;64&lt;/span&gt;&lt;span class="o"&gt;:~&lt;/span&gt;&lt;span class="err"&gt;$&lt;/span&gt; &lt;span class="n"&gt;exit&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;h3&gt;Destroy the Vagrant VM&lt;/h3&gt;
+&lt;p&gt;We won't be using this simple VM in the following steps--it was good to verify that Ansible is setup correctly--so we'll destroy it.&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span class="n"&gt;vagrant&lt;/span&gt; &lt;span class="n"&gt;destroy&lt;/span&gt;
+    &lt;span class="nl"&gt;default:&lt;/span&gt; &lt;span class="n"&gt;Are&lt;/span&gt; &lt;span class="n"&gt;you&lt;/span&gt; &lt;span class="n"&gt;sure&lt;/span&gt; &lt;span class="n"&gt;you&lt;/span&gt; &lt;span class="n"&gt;want&lt;/span&gt; &lt;span class="n"&gt;to&lt;/span&gt; &lt;span class="n"&gt;destroy&lt;/span&gt; &lt;span class="n"&gt;the&lt;/span&gt; &lt;span class="err"&gt;&amp;#39;&lt;/span&gt;&lt;span class="k"&gt;default&lt;/span&gt;&lt;span class="err"&gt;&amp;#39;&lt;/span&gt; &lt;span class="n"&gt;VM&lt;/span&gt;&lt;span class="o"&gt;?&lt;/span&gt; &lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="n"&gt;y&lt;/span&gt;&lt;span class="o"&gt;/&lt;/span&gt;&lt;span class="n"&gt;N&lt;/span&gt;&lt;span class="p"&gt;]&lt;/span&gt; &lt;span class="n"&gt;y&lt;/span&gt;
+&lt;span class="o"&gt;==&amp;gt;&lt;/span&gt; &lt;span class="k"&gt;default&lt;/span&gt;&lt;span class="o"&gt;:&lt;/span&gt; &lt;span class="n"&gt;Forcing&lt;/span&gt; &lt;span class="n"&gt;shutdown&lt;/span&gt; &lt;span class="n"&gt;of&lt;/span&gt; &lt;span class="n"&gt;VM&lt;/span&gt;&lt;span class="p"&gt;...&lt;/span&gt;
+&lt;span class="o"&gt;==&amp;gt;&lt;/span&gt; &lt;span class="k"&gt;default&lt;/span&gt;&lt;span class="o"&gt;:&lt;/span&gt; &lt;span class="n"&gt;Destroying&lt;/span&gt; &lt;span class="n"&gt;VM&lt;/span&gt; &lt;span class="n"&gt;and&lt;/span&gt; &lt;span class="n"&gt;associated&lt;/span&gt; &lt;span class="n"&gt;drives&lt;/span&gt;&lt;span class="p"&gt;...&lt;/span&gt;
+&lt;span class="o"&gt;==&amp;gt;&lt;/span&gt; &lt;span class="k"&gt;default&lt;/span&gt;&lt;span class="o"&gt;:&lt;/span&gt; &lt;span class="n"&gt;Running&lt;/span&gt; &lt;span class="n"&gt;cleanup&lt;/span&gt; &lt;span class="n"&gt;tasks&lt;/span&gt; &lt;span class="k"&gt;for&lt;/span&gt; &lt;span class="err"&gt;&amp;#39;&lt;/span&gt;&lt;span class="n"&gt;ansible&lt;/span&gt;&lt;span class="err"&gt;&amp;#39;&lt;/span&gt; &lt;span class="n"&gt;provisioner&lt;/span&gt;&lt;span class="p"&gt;...&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;h2&gt;Step 3 - Using Ansible to provision nginx&lt;/h2&gt;
+&lt;p&gt;Ansible can be used for quite a bit more than create directories from a single playbook file, and can manipulate a fair number of resources from system settings (users, groups, cronjobs, package repositories) to applications (Apache httpd, ntpd) to cloud assets (AWS EC2 instances, OpenStack storage).  For a full list visit http://docs.ansible.com/modules_by_category.html&lt;/p&gt;
+&lt;p&gt;This is also when we'll start using more typical Ansible conventions.&lt;/p&gt;
+&lt;h3&gt;Resources&lt;/h3&gt;
+&lt;p&gt;&lt;a href="http://docs.ansible.com/playbooks_best_practices.html"&gt;http://docs.ansible.com/playbooks_best_practices.html&lt;/a&gt; has a good walk-through of a non-trivial site layout involving a few different types of servers in a few different server locations.&lt;/p&gt;
+&lt;h3&gt;Update source&lt;/h3&gt;
+&lt;p&gt;In that same directory, update the source code to step 3&lt;/p&gt;
+&lt;p&gt;&lt;code&gt;git checkout -f tags/step3&lt;/code&gt;&lt;/p&gt;
+&lt;h3&gt;Create the provisioning directory for nginx&lt;/h3&gt;
+&lt;p&gt;Ansible has a recommended convention for laying out a directory. The docs are here, &lt;a href="http://docs.ansible.com/playbooks_best_practices.html"&gt;http://docs.ansible.com/playbooks_best_practices.html&lt;/a&gt;, and they're a good walk-through of a non-trivial layout.&lt;/p&gt;
+&lt;p&gt;The following steps show what you'll have to do manually--if you haven't checked out step3 from git, do these manually. First, create a directory to hold our Ansible provisioning files.&lt;/p&gt;
+&lt;p&gt;&lt;code&gt;mkdir provision&lt;/code&gt;&lt;/p&gt;
+&lt;p&gt;Create the nginx role in Ansible&lt;/p&gt;
+&lt;p&gt;Now, add an Ansible role to install nginx:&lt;/p&gt;
+&lt;p&gt;&lt;code&gt;ansible-galaxy init roles/nginx&lt;/code&gt;&lt;/p&gt;
+&lt;p&gt;And let's edit some files. Note that each file should start with the three dashes, which indicates it's a YAML file.  (Ansible isn't all that picky on those three dashes, though) The entire contents of all the file are listed below:&lt;/p&gt;
+&lt;h4&gt;roles/nginx/tasks/main.yml&lt;/h4&gt;
+&lt;p&gt;This is the main list of tasks that Ansible performs when it's provisioning the nginx role. These tasks are performed sequentially, there's no "convergence" phase at runtime as there are in other tools.&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span class="o"&gt;---&lt;/span&gt;
+ &lt;span class="o"&gt;-&lt;/span&gt; &lt;span class="n"&gt;name&lt;/span&gt;&lt;span class="o"&gt;:&lt;/span&gt; &lt;span class="n"&gt;add&lt;/span&gt; &lt;span class="n"&gt;nginx&lt;/span&gt; &lt;span class="n"&gt;ppa&lt;/span&gt; &lt;span class="n"&gt;repository&lt;/span&gt;
+   &lt;span class="nl"&gt;apt_repository:&lt;/span&gt; &lt;span class="n"&gt;repo&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="err"&gt;&amp;#39;&lt;/span&gt;&lt;span class="n"&gt;ppa&lt;/span&gt;&lt;span class="o"&gt;:&lt;/span&gt;&lt;span class="n"&gt;nginx&lt;/span&gt;&lt;span class="o"&gt;/&lt;/span&gt;&lt;span class="n"&gt;stable&lt;/span&gt;&lt;span class="err"&gt;&amp;#39;&lt;/span&gt;
+
+ &lt;span class="o"&gt;-&lt;/span&gt; &lt;span class="n"&gt;name&lt;/span&gt;&lt;span class="o"&gt;:&lt;/span&gt; &lt;span class="n"&gt;install&lt;/span&gt; &lt;span class="n"&gt;nginx&lt;/span&gt;
+   &lt;span class="nl"&gt;apt:&lt;/span&gt; &lt;span class="n"&gt;pkg&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="n"&gt;nginx&lt;/span&gt; &lt;span class="n"&gt;state&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="n"&gt;installed&lt;/span&gt;
+
+ &lt;span class="o"&gt;-&lt;/span&gt; &lt;span class="n"&gt;name&lt;/span&gt;&lt;span class="o"&gt;:&lt;/span&gt; &lt;span class="n"&gt;remove&lt;/span&gt; &lt;span class="k"&gt;default&lt;/span&gt; &lt;span class="n"&gt;site&lt;/span&gt;
+   &lt;span class="nl"&gt;file:&lt;/span&gt; &lt;span class="n"&gt;path&lt;/span&gt;&lt;span class="o"&gt;=/&lt;/span&gt;&lt;span class="n"&gt;etc&lt;/span&gt;&lt;span class="o"&gt;/&lt;/span&gt;&lt;span class="n"&gt;nginx&lt;/span&gt;&lt;span class="o"&gt;/&lt;/span&gt;&lt;span class="n"&gt;sites&lt;/span&gt;&lt;span class="o"&gt;-&lt;/span&gt;&lt;span class="n"&gt;enabled&lt;/span&gt;&lt;span class="o"&gt;/&lt;/span&gt;&lt;span class="k"&gt;default&lt;/span&gt; &lt;span class="n"&gt;state&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="n"&gt;absent&lt;/span&gt;
+   &lt;span class="nl"&gt;notify:&lt;/span&gt; &lt;span class="n"&gt;restart&lt;/span&gt; &lt;span class="n"&gt;nginx&lt;/span&gt;  
+
+ &lt;span class="o"&gt;-&lt;/span&gt; &lt;span class="n"&gt;name&lt;/span&gt;&lt;span class="o"&gt;:&lt;/span&gt; &lt;span class="n"&gt;add&lt;/span&gt; &lt;span class="n"&gt;our&lt;/span&gt; &lt;span class="n"&gt;nginx&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="n"&gt;conf&lt;/span&gt;
+   &lt;span class="nl"&gt;copy:&lt;/span&gt; &lt;span class="n"&gt;src&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="n"&gt;nginx&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="n"&gt;conf&lt;/span&gt; &lt;span class="n"&gt;dest&lt;/span&gt;&lt;span class="o"&gt;=/&lt;/span&gt;&lt;span class="n"&gt;etc&lt;/span&gt;&lt;span class="o"&gt;/&lt;/span&gt;&lt;span class="n"&gt;nginx&lt;/span&gt;&lt;span class="o"&gt;/&lt;/span&gt;&lt;span class="n"&gt;nginx&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="n"&gt;conf&lt;/span&gt; &lt;span class="n"&gt;owner&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="n"&gt;root&lt;/span&gt; &lt;span class="n"&gt;group&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="n"&gt;root&lt;/span&gt; &lt;span class="n"&gt;mode&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="mi"&gt;644&lt;/span&gt;
+   &lt;span class="nl"&gt;notify:&lt;/span&gt; &lt;span class="n"&gt;restart&lt;/span&gt; &lt;span class="n"&gt;nginx&lt;/span&gt;  
+
+ &lt;span class="o"&gt;-&lt;/span&gt; &lt;span class="n"&gt;name&lt;/span&gt;&lt;span class="o"&gt;:&lt;/span&gt; &lt;span class="n"&gt;add&lt;/span&gt; &lt;span class="k"&gt;static&lt;/span&gt; &lt;span class="n"&gt;directory&lt;/span&gt;
+   &lt;span class="nl"&gt;file:&lt;/span&gt; &lt;span class="n"&gt;path&lt;/span&gt;&lt;span class="o"&gt;=/&lt;/span&gt;&lt;span class="n"&gt;opt&lt;/span&gt;&lt;span class="o"&gt;/&lt;/span&gt;&lt;span class="k"&gt;static&lt;/span&gt; &lt;span class="n"&gt;state&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="n"&gt;directory&lt;/span&gt;
+
+ &lt;span class="o"&gt;-&lt;/span&gt; &lt;span class="n"&gt;name&lt;/span&gt;&lt;span class="o"&gt;:&lt;/span&gt; &lt;span class="n"&gt;add&lt;/span&gt; &lt;span class="k"&gt;static&lt;/span&gt; &lt;span class="n"&gt;site&lt;/span&gt; &lt;span class="n"&gt;index&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="n"&gt;htm&lt;/span&gt; &lt;span class="n"&gt;file&lt;/span&gt;
+   &lt;span class="nl"&gt;copy:&lt;/span&gt; &lt;span class="n"&gt;src&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="n"&gt;index&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="n"&gt;html&lt;/span&gt; &lt;span class="n"&gt;dest&lt;/span&gt;&lt;span class="o"&gt;=/&lt;/span&gt;&lt;span class="n"&gt;opt&lt;/span&gt;&lt;span class="o"&gt;/&lt;/span&gt;&lt;span class="k"&gt;static&lt;/span&gt;&lt;span class="o"&gt;/&lt;/span&gt;&lt;span class="n"&gt;index&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="n"&gt;html&lt;/span&gt; &lt;span class="n"&gt;owner&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="n"&gt;root&lt;/span&gt; &lt;span class="n"&gt;group&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="n"&gt;root&lt;/span&gt; &lt;span class="n"&gt;mode&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="mi"&gt;644&lt;/span&gt;
+   &lt;span class="nl"&gt;notify:&lt;/span&gt; &lt;span class="n"&gt;restart&lt;/span&gt; &lt;span class="n"&gt;nginx&lt;/span&gt;  
+
+ &lt;span class="o"&gt;-&lt;/span&gt; &lt;span class="n"&gt;name&lt;/span&gt;&lt;span class="o"&gt;:&lt;/span&gt; &lt;span class="n"&gt;add&lt;/span&gt; &lt;span class="n"&gt;nginx&lt;/span&gt; &lt;span class="n"&gt;config&lt;/span&gt; &lt;span class="n"&gt;file&lt;/span&gt; &lt;span class="k"&gt;for&lt;/span&gt; &lt;span class="k"&gt;static&lt;/span&gt; &lt;span class="n"&gt;site&lt;/span&gt;
+   &lt;span class="nl"&gt;copy:&lt;/span&gt; &lt;span class="n"&gt;src&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="k"&gt;static&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="n"&gt;conf&lt;/span&gt; &lt;span class="n"&gt;dest&lt;/span&gt;&lt;span class="o"&gt;=/&lt;/span&gt;&lt;span class="n"&gt;etc&lt;/span&gt;&lt;span class="o"&gt;/&lt;/span&gt;&lt;span class="n"&gt;nginx&lt;/span&gt;&lt;span class="o"&gt;/&lt;/span&gt;&lt;span class="n"&gt;conf&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="n"&gt;d&lt;/span&gt;&lt;span class="o"&gt;/&lt;/span&gt;&lt;span class="k"&gt;static&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="n"&gt;conf&lt;/span&gt; &lt;span class="n"&gt;owner&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="n"&gt;root&lt;/span&gt; &lt;span class="n"&gt;group&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="n"&gt;root&lt;/span&gt; &lt;span class="n"&gt;mode&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="mi"&gt;644&lt;/span&gt;
+   &lt;span class="nl"&gt;notify:&lt;/span&gt; &lt;span class="n"&gt;restart&lt;/span&gt; &lt;span class="n"&gt;nginx&lt;/span&gt;  
+
+ &lt;span class="o"&gt;-&lt;/span&gt; &lt;span class="n"&gt;name&lt;/span&gt;&lt;span class="o"&gt;:&lt;/span&gt; &lt;span class="n"&gt;start&lt;/span&gt; &lt;span class="n"&gt;nginx&lt;/span&gt;
+   &lt;span class="nl"&gt;service:&lt;/span&gt; &lt;span class="n"&gt;name&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="n"&gt;nginx&lt;/span&gt; &lt;span class="n"&gt;state&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="n"&gt;started&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;h4&gt;nginx/tasks/handlers.yml&lt;/h4&gt;
+&lt;p&gt;Handlers are actions that are triggered when task does something.  With this nginx example, we'll want to restart nginx if we change the config files for nginx or the static site we're serving.&lt;/p&gt;
+&lt;p&gt;We have two handlers to do this.  The 'restart nginx' handler (which is called whenever a file changes through the task list above), and the 'verify nginx' handler to make sure nginx still works. The first 'restart nginx' handler calls the second handler with the notify statement.&lt;/p&gt;
+&lt;p&gt;That second handler just performs a "curl" command to make sure nginx is working.&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span class="o"&gt;---&lt;/span&gt;
+ &lt;span class="o"&gt;-&lt;/span&gt; &lt;span class="n"&gt;name&lt;/span&gt;&lt;span class="o"&gt;:&lt;/span&gt; &lt;span class="n"&gt;restart&lt;/span&gt; &lt;span class="n"&gt;nginx&lt;/span&gt;
+   &lt;span class="nl"&gt;service:&lt;/span&gt; &lt;span class="n"&gt;name&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="n"&gt;nginx&lt;/span&gt; &lt;span class="n"&gt;state&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="n"&gt;restarted&lt;/span&gt;
+   &lt;span class="nl"&gt;notify:&lt;/span&gt; &lt;span class="n"&gt;verify&lt;/span&gt; &lt;span class="n"&gt;nginx&lt;/span&gt;
+
+ &lt;span class="o"&gt;-&lt;/span&gt; &lt;span class="n"&gt;name&lt;/span&gt;&lt;span class="o"&gt;:&lt;/span&gt; &lt;span class="n"&gt;verify&lt;/span&gt; &lt;span class="n"&gt;nginx&lt;/span&gt;
+   &lt;span class="nl"&gt;shell:&lt;/span&gt; &lt;span class="n"&gt;curl&lt;/span&gt; &lt;span class="mf"&gt;127.0.0.1&lt;/span&gt;&lt;span class="o"&gt;:&lt;/span&gt;&lt;span class="mi"&gt;8080&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;h4&gt;roles/nginx/files/nginx.conf&lt;/h4&gt;
+&lt;p&gt;The nginx.conf file.  This is just a plain text file.  Ansible supports templates, but we're not using them in this walk-through.&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span class="n"&gt;user&lt;/span&gt; &lt;span class="n"&gt;www&lt;/span&gt;&lt;span class="o"&gt;-&lt;/span&gt;&lt;span class="n"&gt;data&lt;/span&gt;&lt;span class="p"&gt;;&lt;/span&gt;
+&lt;span class="n"&gt;worker_processes&lt;/span&gt; &lt;span class="mi"&gt;4&lt;/span&gt;&lt;span class="p"&gt;;&lt;/span&gt;
+&lt;span class="n"&gt;pid&lt;/span&gt; &lt;span class="o"&gt;/&lt;/span&gt;&lt;span class="n"&gt;run&lt;/span&gt;&lt;span class="o"&gt;/&lt;/span&gt;&lt;span class="n"&gt;nginx&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="n"&gt;pid&lt;/span&gt;&lt;span class="p"&gt;;&lt;/span&gt;
+
+&lt;span class="n"&gt;events&lt;/span&gt; &lt;span class="p"&gt;{&lt;/span&gt;
+    &lt;span class="n"&gt;worker_connections&lt;/span&gt; &lt;span class="mi"&gt;768&lt;/span&gt;&lt;span class="p"&gt;;&lt;/span&gt;
+&lt;span class="p"&gt;}&lt;/span&gt;
+
+&lt;span class="n"&gt;http&lt;/span&gt; &lt;span class="p"&gt;{&lt;/span&gt;
+    &lt;span class="n"&gt;include&lt;/span&gt; &lt;span class="o"&gt;/&lt;/span&gt;&lt;span class="n"&gt;etc&lt;/span&gt;&lt;span class="o"&gt;/&lt;/span&gt;&lt;span class="n"&gt;nginx&lt;/span&gt;&lt;span class="o"&gt;/&lt;/span&gt;&lt;span class="n"&gt;mime&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="n"&gt;types&lt;/span&gt;&lt;span class="p"&gt;;&lt;/span&gt;
+    &lt;span class="n"&gt;default_type&lt;/span&gt; &lt;span class="n"&gt;application&lt;/span&gt;&lt;span class="o"&gt;/&lt;/span&gt;&lt;span class="n"&gt;octet&lt;/span&gt;&lt;span class="o"&gt;-&lt;/span&gt;&lt;span class="n"&gt;stream&lt;/span&gt;&lt;span class="p"&gt;;&lt;/span&gt;
+
+    &lt;span class="n"&gt;access_log&lt;/span&gt; &lt;span class="o"&gt;/&lt;/span&gt;&lt;span class="n"&gt;var&lt;/span&gt;&lt;span class="o"&gt;/&lt;/span&gt;&lt;span class="n"&gt;log&lt;/span&gt;&lt;span class="o"&gt;/&lt;/span&gt;&lt;span class="n"&gt;nginx&lt;/span&gt;&lt;span class="o"&gt;/&lt;/span&gt;&lt;span class="n"&gt;access&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="n"&gt;log&lt;/span&gt;&lt;span class="p"&gt;;&lt;/span&gt;
+    &lt;span class="n"&gt;error_log&lt;/span&gt; &lt;span class="o"&gt;/&lt;/span&gt;&lt;span class="n"&gt;var&lt;/span&gt;&lt;span class="o"&gt;/&lt;/span&gt;&lt;span class="n"&gt;log&lt;/span&gt;&lt;span class="o"&gt;/&lt;/span&gt;&lt;span class="n"&gt;nginx&lt;/span&gt;&lt;span class="o"&gt;/&lt;/span&gt;&lt;span class="n"&gt;error&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="n"&gt;log&lt;/span&gt;&lt;span class="p"&gt;;&lt;/span&gt;
+
+    &lt;span class="n"&gt;include&lt;/span&gt; &lt;span class="o"&gt;/&lt;/span&gt;&lt;span class="n"&gt;etc&lt;/span&gt;&lt;span class="o"&gt;/&lt;/span&gt;&lt;span class="n"&gt;nginx&lt;/span&gt;&lt;span class="o"&gt;/&lt;/span&gt;&lt;span class="n"&gt;conf&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="n"&gt;d&lt;/span&gt;&lt;span class="o"&gt;/*&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="n"&gt;conf&lt;/span&gt;&lt;span class="p"&gt;;&lt;/span&gt;
+&lt;span class="p"&gt;}&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;h4&gt;roles/nginx/files/static.conf&lt;/h4&gt;
+&lt;p&gt;This text file just says where the static files live. We're putting them in /opt/static (many people put them in somewhere in /var, but I prefer to serve sites and web applications out of /opt/*)&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span class="n"&gt;server&lt;/span&gt; &lt;span class="p"&gt;{&lt;/span&gt;
+    &lt;span class="n"&gt;listen&lt;/span&gt; &lt;span class="mi"&gt;8080&lt;/span&gt;&lt;span class="p"&gt;;&lt;/span&gt;
+    &lt;span class="n"&gt;location&lt;/span&gt; &lt;span class="o"&gt;/&lt;/span&gt; &lt;span class="p"&gt;{&lt;/span&gt;
+        &lt;span class="n"&gt;root&lt;/span&gt; &lt;span class="o"&gt;/&lt;/span&gt;&lt;span class="n"&gt;opt&lt;/span&gt;&lt;span class="o"&gt;/&lt;/span&gt;&lt;span class="k"&gt;static&lt;/span&gt;&lt;span class="p"&gt;;&lt;/span&gt;
+        &lt;span class="n"&gt;index&lt;/span&gt; &lt;span class="n"&gt;index&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="n"&gt;html&lt;/span&gt; &lt;span class="n"&gt;index&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="n"&gt;htm&lt;/span&gt;&lt;span class="p"&gt;;&lt;/span&gt;
+    &lt;span class="p"&gt;}&lt;/span&gt;
+&lt;span class="p"&gt;}&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;h4&gt;roles/nginx/files/index.html&lt;/h4&gt;
+&lt;p&gt;A static webpage that's served by nginx.&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt; &lt;span class="nt"&gt;&amp;lt;html&amp;gt;&lt;/span&gt;
+ &lt;span class="nt"&gt;&amp;lt;h2&amp;gt;&lt;/span&gt;Hey nginx works!&lt;span class="nt"&gt;&amp;lt;/h2&amp;gt;&lt;/span&gt;
+ &lt;span class="nt"&gt;&amp;lt;/html&amp;gt;&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;h4&gt;webserver.yml&lt;/h4&gt;
+&lt;p&gt;This is an Ansible playbook to build out a webserver in our Vagrant environment.&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span class="o"&gt;---&lt;/span&gt;
+&lt;span class="cp"&gt;# file: webserver.yml&lt;/span&gt;
+&lt;span class="o"&gt;-&lt;/span&gt; &lt;span class="n"&gt;hosts&lt;/span&gt;&lt;span class="o"&gt;:&lt;/span&gt; &lt;span class="n"&gt;all&lt;/span&gt;
+  &lt;span class="nl"&gt;user:&lt;/span&gt; &lt;span class="n"&gt;vagrant&lt;/span&gt;
+  &lt;span class="nl"&gt;sudo:&lt;/span&gt; &lt;span class="n"&gt;yes&lt;/span&gt;
+  &lt;span class="nl"&gt;gather_facts:&lt;/span&gt; &lt;span class="nb"&gt;false&lt;/span&gt;
+  &lt;span class="nl"&gt;roles:&lt;/span&gt;
+    &lt;span class="o"&gt;-&lt;/span&gt; &lt;span class="n"&gt;nginx&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;h4&gt;site.yml&lt;/h4&gt;
+&lt;p&gt;This describes the site.  There's just the one server type in there now.&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span class="o"&gt;---&lt;/span&gt;
+&lt;span class="cp"&gt;# file: site.yml&lt;/span&gt;
+&lt;span class="o"&gt;-&lt;/span&gt; &lt;span class="n"&gt;include&lt;/span&gt;&lt;span class="o"&gt;:&lt;/span&gt; &lt;span class="n"&gt;webserver&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="n"&gt;yml&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;h3&gt;A bit of explanation--how Ansible describes the site&lt;/h3&gt;
+&lt;p&gt;Now that you've done all that... what's all that mean?&lt;/p&gt;
+&lt;p&gt;With Ansible, the overall site is typically described by site.yml. It's a file that describes the entire site, and often it's pretty short and just includes other files, usually instances/servers/boxes by what they do, such as "web server" or "database server".&lt;/p&gt;
+&lt;p&gt;With Ansible terminology the term "role" refers to a fairly specific package or software component, like nginx or MySQL.&lt;/p&gt;
+&lt;p&gt;Ansible ends up having a tree of site components:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;The overall site in site.yml. This lists all the server types like "web_server" or "database_server". Sites can also be described by location, such as "oregon_servers" or "dublin_servers"&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Server classes defined in &lt;server&gt;.yml file. This defines what roles are applied to each server type. Web servers might get nginx; database servers might get Postgres.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Roles in a &lt;rolename&gt; directory. Roles are encapuslated components, like redis or Apache web server, or a custom Java app in a Tomcat container.  The role directory has subdirectories inside where Ansible knows where to look, and the ones we use here are "files", "handlers", and "tasks".&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h3&gt;Update the Vagrantfile&lt;/h3&gt;
+&lt;p&gt;We'll update the Vagrantfile to point to the new playbook, and refactor it a bit so it's easier to add new server types.&lt;/p&gt;
+&lt;p&gt;We'll also expose port 8080, so we can open up a web browser on our Mac to see nginx serving pages.&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span class="n"&gt;VAGRANTFILE_API_VERSION&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="s"&gt;&amp;quot;2&amp;quot;&lt;/span&gt;
+
+&lt;span class="n"&gt;Vagrant&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="n"&gt;configure&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;VAGRANTFILE_API_VERSION&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt; &lt;span class="k"&gt;do&lt;/span&gt; &lt;span class="o"&gt;|&lt;/span&gt;&lt;span class="n"&gt;config&lt;/span&gt;&lt;span class="o"&gt;|&lt;/span&gt;
+  &lt;span class="n"&gt;config&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="n"&gt;vm&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="n"&gt;define&lt;/span&gt; &lt;span class="s"&gt;&amp;quot;webserver&amp;quot;&lt;/span&gt; &lt;span class="k"&gt;do&lt;/span&gt; &lt;span class="o"&gt;|&lt;/span&gt;&lt;span class="n"&gt;webserver&lt;/span&gt;&lt;span class="o"&gt;|&lt;/span&gt;
+    &lt;span class="n"&gt;webserver&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="n"&gt;vm&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="n"&gt;box&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="s"&gt;&amp;quot;ubuntu/trusty64&amp;quot;&lt;/span&gt;
+    &lt;span class="n"&gt;webserver&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="n"&gt;vm&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="n"&gt;network&lt;/span&gt; &lt;span class="o"&gt;:&lt;/span&gt;&lt;span class="n"&gt;private_network&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;ip&lt;/span&gt;&lt;span class="o"&gt;:&lt;/span&gt; &lt;span class="s"&gt;&amp;quot;192.168.111.222&amp;quot;&lt;/span&gt;
+    &lt;span class="n"&gt;webserver&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="n"&gt;vm&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="n"&gt;network&lt;/span&gt; &lt;span class="o"&gt;:&lt;/span&gt;&lt;span class="n"&gt;forwarded_port&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;guest&lt;/span&gt;&lt;span class="o"&gt;:&lt;/span&gt; &lt;span class="mi"&gt;8080&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;host&lt;/span&gt;&lt;span class="o"&gt;:&lt;/span&gt; &lt;span class="mi"&gt;8080&lt;/span&gt;
+    &lt;span class="n"&gt;webserver&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="n"&gt;vm&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="n"&gt;provision&lt;/span&gt; &lt;span class="s"&gt;&amp;quot;ansible&amp;quot;&lt;/span&gt; &lt;span class="k"&gt;do&lt;/span&gt; &lt;span class="o"&gt;|&lt;/span&gt;&lt;span class="n"&gt;ansible&lt;/span&gt;&lt;span class="o"&gt;|&lt;/span&gt;
+      &lt;span class="n"&gt;ansible&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="n"&gt;extra_vars&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="p"&gt;{&lt;/span&gt; &lt;span class="n"&gt;ansible_ssh_user&lt;/span&gt;&lt;span class="o"&gt;:&lt;/span&gt; &lt;span class="err"&gt;&amp;#39;&lt;/span&gt;&lt;span class="n"&gt;vagrant&lt;/span&gt;&lt;span class="err"&gt;&amp;#39;&lt;/span&gt; &lt;span class="p"&gt;}&lt;/span&gt;
+      &lt;span class="n"&gt;ansible&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="n"&gt;verbose&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="s"&gt;&amp;quot;vv&amp;quot;&lt;/span&gt;
+      &lt;span class="n"&gt;ansible&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="n"&gt;playbook&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="s"&gt;&amp;quot;webserver.yml&amp;quot;&lt;/span&gt;
+    &lt;span class="n"&gt;end&lt;/span&gt;
+  &lt;span class="n"&gt;end&lt;/span&gt;
+&lt;span class="n"&gt;end&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;Launch this new Vagrant instance with&lt;/p&gt;
+&lt;p&gt;&lt;code&gt;vagrant up webserver&lt;/code&gt;&lt;/p&gt;
+&lt;p&gt;Ansible will startup the new instance, install nginx and our single-page static site, and verify it's working with the curl command--look in the console output for the HTML.&lt;/p&gt;
+&lt;h3&gt;Verify&lt;/h3&gt;
+&lt;p&gt;You should also verify this works from your Mac--just visit &lt;a href="http://localhost:8080"&gt;http://localhost:8080&lt;/a&gt;, and you should see the "Hey nginx works!"&lt;/p&gt;
+&lt;h3&gt;Reprovisioning&lt;/h3&gt;
+&lt;p&gt;When you're developing with Ansible and Vagrant, you'll be tweaking your playbooks and task lists and files over and over, and you'll need a way to quickly rerun your work.  It takes a fairly long time to reimport a virtual machine from scratch, but Vagrant can reprovision your box with a simple command.&lt;/p&gt;
+&lt;p&gt;Let's try that now: edit the index.html file inside roles/nginx/files/index.html to say "Heyyyyy nginx works", and save the file away.&lt;/p&gt;
+&lt;p&gt;Now, rerun the provisioning on your Vagrant VM with&lt;/p&gt;
+&lt;p&gt;&lt;code&gt;vagrant provision&lt;/code&gt;&lt;/p&gt;
+&lt;p&gt;You'll see that the index.htm file is changed:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span class="nl"&gt;TASK:&lt;/span&gt; &lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="n"&gt;nginx&lt;/span&gt; &lt;span class="o"&gt;|&lt;/span&gt; &lt;span class="n"&gt;add&lt;/span&gt; &lt;span class="k"&gt;static&lt;/span&gt; &lt;span class="n"&gt;site&lt;/span&gt; &lt;span class="n"&gt;index&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="n"&gt;htm&lt;/span&gt; &lt;span class="n"&gt;file&lt;/span&gt;&lt;span class="p"&gt;]&lt;/span&gt; &lt;span class="o"&gt;********************************&lt;/span&gt;
+&lt;span class="nl"&gt;changed:&lt;/span&gt; &lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="n"&gt;webserver&lt;/span&gt;&lt;span class="p"&gt;]&lt;/span&gt; &lt;span class="o"&gt;=&amp;gt;&lt;/span&gt; &lt;span class="p"&gt;{&lt;/span&gt;&lt;span class="s"&gt;&amp;quot;changed&amp;quot;&lt;/span&gt;&lt;span class="o"&gt;:&lt;/span&gt; &lt;span class="nb"&gt;true&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="s"&gt;&amp;quot;dest&amp;quot;&lt;/span&gt;&lt;span class="o"&gt;:&lt;/span&gt; &lt;span class="s"&gt;&amp;quot;/opt/static/index.html&amp;quot;&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="s"&gt;&amp;quot;gid&amp;quot;&lt;/span&gt;&lt;span class="o"&gt;:&lt;/span&gt; &lt;span class="mi"&gt;0&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="s"&gt;&amp;quot;group&amp;quot;&lt;/span&gt;&lt;span class="o"&gt;:&lt;/span&gt; &lt;span class="s"&gt;&amp;quot;root&amp;quot;&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="s"&gt;&amp;quot;md5sum&amp;quot;&lt;/span&gt;&lt;span class="o"&gt;:&lt;/span&gt; &lt;span class="s"&gt;&amp;quot;02f40bd936f4d308a679c0fa636e317d&amp;quot;&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="s"&gt;&amp;quot;mode&amp;quot;&lt;/span&gt;&lt;span class="o"&gt;:&lt;/span&gt; &lt;span class="s"&gt;&amp;quot;0644&amp;quot;&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="s"&gt;&amp;quot;owner&amp;quot;&lt;/span&gt;&lt;span class="o"&gt;:&lt;/span&gt; &lt;span class="s"&gt;&amp;quot;root&amp;quot;&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="s"&gt;&amp;quot;size&amp;quot;&lt;/span&gt;&lt;span class="o"&gt;:&lt;/span&gt; &lt;span class="mi"&gt;46&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="s"&gt;&amp;quot;src&amp;quot;&lt;/span&gt;&lt;span class="o"&gt;:&lt;/span&gt; &lt;span class="s"&gt;&amp;quot;/home/vagrant/.ansible/tmp/ansible-tmp-1407855909.5-223798276574238/source&amp;quot;&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="s"&gt;&amp;quot;state&amp;quot;&lt;/span&gt;&lt;span class="o"&gt;:&lt;/span&gt; &lt;span class="s"&gt;&amp;quot;file&amp;quot;&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="s"&gt;&amp;quot;uid&amp;quot;&lt;/span&gt;&lt;span class="o"&gt;:&lt;/span&gt; &lt;span class="mi"&gt;0&lt;/span&gt;&lt;span class="p"&gt;}&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;Because there is a notification handler on that file, nginx will be restarted and verified with curl:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span class="nv"&gt;NOTIFIED&lt;/span&gt;&lt;span class="s-Atom"&gt;:&lt;/span&gt; &lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="s-Atom"&gt;nginx&lt;/span&gt; &lt;span class="p"&gt;|&lt;/span&gt; &lt;span class="s-Atom"&gt;restart&lt;/span&gt; &lt;span class="s-Atom"&gt;nginx&lt;/span&gt;&lt;span class="p"&gt;]&lt;/span&gt; &lt;span class="s-Atom"&gt;*********************************************&lt;/span&gt;
+&lt;span class="o"&gt;&amp;lt;&lt;/span&gt;&lt;span class="m"&gt;127&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="m"&gt;0&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="m"&gt;0&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="m"&gt;1&lt;/span&gt;&lt;span class="o"&gt;&amp;gt;&lt;/span&gt; &lt;span class="nv"&gt;REMOTE_MODULE&lt;/span&gt; &lt;span class="s-Atom"&gt;service&lt;/span&gt; &lt;span class="s-Atom"&gt;name&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="s-Atom"&gt;nginx&lt;/span&gt; &lt;span class="s-Atom"&gt;state&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="s-Atom"&gt;restarted&lt;/span&gt;
+&lt;span class="nn"&gt;changed&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="s-Atom"&gt;webserver&lt;/span&gt;&lt;span class="p"&gt;]&lt;/span&gt; &lt;span class="s-Atom"&gt;=&amp;gt;&lt;/span&gt; &lt;span class="p"&gt;{&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;changed&amp;quot;&lt;/span&gt;&lt;span class="s-Atom"&gt;:&lt;/span&gt; &lt;span class="s-Atom"&gt;true&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="s2"&gt;&amp;quot;name&amp;quot;&lt;/span&gt;&lt;span class="s-Atom"&gt;:&lt;/span&gt; &lt;span class="s2"&gt;&amp;quot;nginx&amp;quot;&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="s2"&gt;&amp;quot;state&amp;quot;&lt;/span&gt;&lt;span class="s-Atom"&gt;:&lt;/span&gt; &lt;span class="s2"&gt;&amp;quot;started&amp;quot;&lt;/span&gt;&lt;span class="p"&gt;}&lt;/span&gt;
+
+&lt;span class="nv"&gt;NOTIFIED&lt;/span&gt;&lt;span class="s-Atom"&gt;:&lt;/span&gt; &lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="s-Atom"&gt;nginx&lt;/span&gt; &lt;span class="p"&gt;|&lt;/span&gt; &lt;span class="s-Atom"&gt;verify&lt;/span&gt; &lt;span class="s-Atom"&gt;nginx&lt;/span&gt;&lt;span class="p"&gt;]&lt;/span&gt; &lt;span class="s-Atom"&gt;**********************************************&lt;/span&gt;
+&lt;span class="o"&gt;&amp;lt;&lt;/span&gt;&lt;span class="m"&gt;127&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="m"&gt;0&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="m"&gt;0&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="m"&gt;1&lt;/span&gt;&lt;span class="o"&gt;&amp;gt;&lt;/span&gt; &lt;span class="nv"&gt;REMOTE_MODULE&lt;/span&gt; &lt;span class="s-Atom"&gt;command&lt;/span&gt; &lt;span class="s-Atom"&gt;curl&lt;/span&gt; &lt;span class="m"&gt;127&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="m"&gt;0&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="m"&gt;0&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="m"&gt;1&lt;/span&gt;&lt;span class="s-Atom"&gt;:&lt;/span&gt;&lt;span class="m"&gt;8080&lt;/span&gt; &lt;span class="s-Atom"&gt;#&lt;/span&gt;&lt;span class="nv"&gt;USE_SHELL&lt;/span&gt;
+&lt;span class="nn"&gt;changed&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="s-Atom"&gt;webserver&lt;/span&gt;&lt;span class="p"&gt;]&lt;/span&gt; &lt;span class="s-Atom"&gt;=&amp;gt;&lt;/span&gt; &lt;span class="p"&gt;{&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;changed&amp;quot;&lt;/span&gt;&lt;span class="s-Atom"&gt;:&lt;/span&gt; &lt;span class="s-Atom"&gt;true&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="s2"&gt;&amp;quot;cmd&amp;quot;&lt;/span&gt;&lt;span class="s-Atom"&gt;:&lt;/span&gt; &lt;span class="s2"&gt;&amp;quot;curl 127.0.0.1:8080 &amp;quot;&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="s2"&gt;&amp;quot;delta&amp;quot;&lt;/span&gt;&lt;span class="s-Atom"&gt;:&lt;/span&gt; &lt;span class="s2"&gt;&amp;quot;0:00:00.009759&amp;quot;&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="s2"&gt;&amp;quot;end&amp;quot;&lt;/span&gt;&lt;span class="s-Atom"&gt;:&lt;/span&gt; &lt;span class="s2"&gt;&amp;quot;2014-08-12 15:07:03.461307&amp;quot;&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="s2"&gt;&amp;quot;rc&amp;quot;&lt;/span&gt;&lt;span class="s-Atom"&gt;:&lt;/span&gt; &lt;span class="m"&gt;0&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="s2"&gt;&amp;quot;start&amp;quot;&lt;/span&gt;&lt;span class="s-Atom"&gt;:&lt;/span&gt; &lt;span class="s2"&gt;&amp;quot;2014-08-12 15:07:03.451548&amp;quot;&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="s2"&gt;&amp;quot;stderr&amp;quot;&lt;/span&gt;&lt;span class="s-Atom"&gt;:&lt;/span&gt; &lt;span class="s2"&gt;&amp;quot;  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current\n                                 Dload  Upload   Total   Spent    Left  Speed\n\r  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0\r100    44  100    44    0     0  17908      0 --:--:-- --:--:-- --:--:-- 22000&amp;quot;&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="s2"&gt;&amp;quot;stdout&amp;quot;&lt;/span&gt;&lt;span class="s-Atom"&gt;:&lt;/span&gt; &lt;span class="s2"&gt;&amp;quot;&amp;lt;html&amp;gt;\n&amp;lt;h2&amp;gt;Heyyyyy nginx works!!&amp;lt;/h2&amp;gt;\n&amp;lt;/html&amp;gt;&amp;quot;&lt;/span&gt;&lt;span class="p"&gt;}&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;You can (and should!) verify from your Mac's web browser by visiting &lt;a href="http://localhost:8080"&gt;http://localhost:8080&lt;/a&gt;&lt;/p&gt;</summary><category term="ansible"></category><category term="vagrant"></category><category term="packer"></category></entry><entry><title>How I setup blogging with Pelican</title><link href="https://danlmarmot.github.com/io/blog/2014/08/04/blog-setup-with-pelican/" rel="alternate"></link><updated>2014-08-04T00:00:00-07:00</updated><author><name>Dan McKean</name></author><id>tag:danlmarmot.github.com,2014-08-04:io/blog/2014/08/04/blog-setup-with-pelican/</id><summary type="html">&lt;p&gt;For a long while, I've wanted to move to a decent blogging system.  I tried WordPress, but keeping it up-to-date with patches and running MySQL for content just seemed kind of wrong--I wanted something simpler and version controlled and not tied to particular server setup, so eventually I found my way to Pelican.&lt;/p&gt;
+&lt;p&gt;And, following the unwritten mandatory rule that the first blog post should be about how a blog is setup, I present you with the magic "How I setup blogging with Pelican" post :-).&lt;/p&gt;
+&lt;p&gt;I still have theming to do, but that's a different post than this one.&lt;/p&gt;
+&lt;h3&gt;Getting going&lt;/h3&gt;
+&lt;p&gt;For this blog, I'm using Pelican 3.4.0, and Github pages.&lt;/p&gt;
+&lt;p&gt;I spent probably far too much time looking around at other tutorials and resources out there.--these two pages gave me enough insight on how to do this:&lt;/p&gt;
+&lt;p&gt;&lt;a href="http://guizishanren.com/guide-to-set-up-github-page-and-pelican"&gt;http://guizishanren.com/guide-to-set-up-github-page-and-pelican&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;&lt;a href="http://www.circuidipity.com/pelican.html"&gt;http://www.circuidipity.com/pelican.html&lt;/a&gt; &lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;A small aside&lt;/strong&gt;: many tutorials are aimed more at writers than developers, and they struggle a bit with the concept of git branching and pushing.  Some suggest two different repositories are needed, but that's not necessary--just use a single Github repo with your editable content in the branch "master" and your static, hosted blog content in "gh-pages".  Github pages knows to serve static content out of any branch named "gh-pages".&lt;/p&gt;
+&lt;p&gt;There's a plugin that helps you generate that static content, so you never have to switch branches either--you always work in master.&lt;/p&gt;
+&lt;h2&gt;Setting up Pelican&lt;/h2&gt;
+&lt;p&gt;Resources for working with Pelican and Github: http://docs.getpelican.com/en/3.4.0/tips.html are pretty good.  &lt;/p&gt;
+&lt;p&gt;I'm using a Mac running MacOS 10.9, and my setup looks like this:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;The blog's content and scripts and everything will live in my home directory at ~/dev/blog&lt;/li&gt;
+&lt;li&gt;All the Python stuff will be in a virtual environment, also kept in that same directory and .gitignore'd.&lt;/li&gt;
+&lt;li&gt;I'll be writing posts in Markdown with Mou.&lt;/li&gt;
+&lt;li&gt;The blog will be hosted on Github as a project page (not a personal or user page--this is an important distinction)&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h3&gt;Install Pelican&lt;/h3&gt;
+&lt;p&gt;Open a terminal window and enter these commands to install Pelican, Markdown, and ghp-import&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span class="n"&gt;sudo&lt;/span&gt; &lt;span class="n"&gt;easy_install&lt;/span&gt; &lt;span class="n"&gt;pip&lt;/span&gt;&lt;span class="p"&gt;;&lt;/span&gt; &lt;span class="n"&gt;sudo&lt;/span&gt; &lt;span class="n"&gt;pip&lt;/span&gt; &lt;span class="n"&gt;install&lt;/span&gt; &lt;span class="n"&gt;virtualenv&lt;/span&gt;
+&lt;span class="n"&gt;mkdir&lt;/span&gt; &lt;span class="o"&gt;~/&lt;/span&gt;&lt;span class="n"&gt;dev&lt;/span&gt;&lt;span class="o"&gt;/&lt;/span&gt;&lt;span class="n"&gt;blog&lt;/span&gt;&lt;span class="p"&gt;;&lt;/span&gt; &lt;span class="n"&gt;cd&lt;/span&gt; &lt;span class="err"&gt;$&lt;/span&gt;&lt;span class="n"&gt;_&lt;/span&gt;
+&lt;span class="n"&gt;virtualenv&lt;/span&gt; &lt;span class="n"&gt;venv&lt;/span&gt;&lt;span class="p"&gt;;&lt;/span&gt; &lt;span class="p"&gt;.&lt;/span&gt; &lt;span class="n"&gt;venv&lt;/span&gt;&lt;span class="o"&gt;/&lt;/span&gt;&lt;span class="n"&gt;bin&lt;/span&gt;&lt;span class="o"&gt;/&lt;/span&gt;&lt;span class="n"&gt;activate&lt;/span&gt;
+&lt;span class="n"&gt;pip&lt;/span&gt; &lt;span class="n"&gt;install&lt;/span&gt; &lt;span class="n"&gt;pelican&lt;/span&gt; &lt;span class="n"&gt;Markdown&lt;/span&gt; &lt;span class="n"&gt;ghp&lt;/span&gt;&lt;span class="o"&gt;-&lt;/span&gt;&lt;span class="n"&gt;import&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;h3&gt;Run the Pelican Quickstart&lt;/h3&gt;
+&lt;p&gt;Most questions I accepted the default, except the pagination and Github one.&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span class="n"&gt;pelican&lt;/span&gt;&lt;span class="o"&gt;-&lt;/span&gt;&lt;span class="n"&gt;quickstart&lt;/span&gt;
+
+&lt;span class="o"&gt;&amp;gt;&lt;/span&gt; &lt;span class="n"&gt;Where&lt;/span&gt; &lt;span class="k"&gt;do&lt;/span&gt; &lt;span class="n"&gt;you&lt;/span&gt; &lt;span class="n"&gt;want&lt;/span&gt; &lt;span class="n"&gt;to&lt;/span&gt; &lt;span class="n"&gt;create&lt;/span&gt; &lt;span class="n"&gt;your&lt;/span&gt; &lt;span class="n"&gt;new&lt;/span&gt; &lt;span class="n"&gt;web&lt;/span&gt; &lt;span class="n"&gt;site&lt;/span&gt;&lt;span class="o"&gt;?&lt;/span&gt; &lt;span class="p"&gt;[.]&lt;/span&gt;
+&lt;span class="o"&gt;&amp;gt;&lt;/span&gt; &lt;span class="n"&gt;What&lt;/span&gt; &lt;span class="n"&gt;will&lt;/span&gt; &lt;span class="n"&gt;be&lt;/span&gt; &lt;span class="n"&gt;the&lt;/span&gt; &lt;span class="n"&gt;title&lt;/span&gt; &lt;span class="n"&gt;of&lt;/span&gt; &lt;span class="n"&gt;this&lt;/span&gt; &lt;span class="n"&gt;web&lt;/span&gt; &lt;span class="n"&gt;site&lt;/span&gt;&lt;span class="o"&gt;?&lt;/span&gt; &lt;span class="n"&gt;Dan&lt;/span&gt;&lt;span class="err"&gt;&amp;#39;&lt;/span&gt;&lt;span class="n"&gt;s&lt;/span&gt; &lt;span class="n"&gt;Random&lt;/span&gt; &lt;span class="n"&gt;Bits&lt;/span&gt;
+&lt;span class="o"&gt;&amp;gt;&lt;/span&gt; &lt;span class="n"&gt;Who&lt;/span&gt; &lt;span class="n"&gt;will&lt;/span&gt; &lt;span class="n"&gt;be&lt;/span&gt; &lt;span class="n"&gt;the&lt;/span&gt; &lt;span class="n"&gt;author&lt;/span&gt; &lt;span class="n"&gt;of&lt;/span&gt; &lt;span class="n"&gt;this&lt;/span&gt; &lt;span class="n"&gt;web&lt;/span&gt; &lt;span class="n"&gt;site&lt;/span&gt;&lt;span class="o"&gt;?&lt;/span&gt; &lt;span class="n"&gt;Dan&lt;/span&gt; &lt;span class="n"&gt;McKean&lt;/span&gt;
+&lt;span class="o"&gt;&amp;gt;&lt;/span&gt; &lt;span class="n"&gt;What&lt;/span&gt; &lt;span class="n"&gt;will&lt;/span&gt; &lt;span class="n"&gt;be&lt;/span&gt; &lt;span class="n"&gt;the&lt;/span&gt; &lt;span class="k"&gt;default&lt;/span&gt; &lt;span class="n"&gt;language&lt;/span&gt; &lt;span class="n"&gt;of&lt;/span&gt; &lt;span class="n"&gt;this&lt;/span&gt; &lt;span class="n"&gt;web&lt;/span&gt; &lt;span class="n"&gt;site&lt;/span&gt;&lt;span class="o"&gt;?&lt;/span&gt; &lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="n"&gt;en&lt;/span&gt;&lt;span class="p"&gt;]&lt;/span&gt;
+&lt;span class="o"&gt;&amp;gt;&lt;/span&gt; &lt;span class="n"&gt;Do&lt;/span&gt; &lt;span class="n"&gt;you&lt;/span&gt; &lt;span class="n"&gt;want&lt;/span&gt; &lt;span class="n"&gt;to&lt;/span&gt; &lt;span class="n"&gt;specify&lt;/span&gt; &lt;span class="n"&gt;a&lt;/span&gt; &lt;span class="n"&gt;URL&lt;/span&gt; &lt;span class="n"&gt;prefix&lt;/span&gt;&lt;span class="o"&gt;?&lt;/span&gt; &lt;span class="n"&gt;e&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="n"&gt;g&lt;/span&gt;&lt;span class="p"&gt;.,&lt;/span&gt; &lt;span class="n"&gt;http&lt;/span&gt;&lt;span class="o"&gt;:&lt;/span&gt;&lt;span class="c1"&gt;//example.com   (Y/n) Y&lt;/span&gt;
+&lt;span class="o"&gt;&amp;gt;&lt;/span&gt; &lt;span class="n"&gt;What&lt;/span&gt; &lt;span class="n"&gt;is&lt;/span&gt; &lt;span class="n"&gt;your&lt;/span&gt; &lt;span class="n"&gt;URL&lt;/span&gt; &lt;span class="n"&gt;prefix&lt;/span&gt;&lt;span class="o"&gt;?&lt;/span&gt; &lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;see&lt;/span&gt; &lt;span class="n"&gt;above&lt;/span&gt; &lt;span class="n"&gt;example&lt;/span&gt;&lt;span class="p"&gt;;&lt;/span&gt; &lt;span class="n"&gt;no&lt;/span&gt; &lt;span class="n"&gt;trailing&lt;/span&gt; &lt;span class="n"&gt;slash&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt; &lt;span class="n"&gt;https&lt;/span&gt;&lt;span class="o"&gt;:&lt;/span&gt;&lt;span class="c1"&gt;//danlmarmot.github.io/blog&lt;/span&gt;
+
+&lt;span class="o"&gt;--&lt;/span&gt; &lt;span class="n"&gt;Note&lt;/span&gt; &lt;span class="n"&gt;this&lt;/span&gt; &lt;span class="n"&gt;change&lt;/span&gt; &lt;span class="n"&gt;from&lt;/span&gt; &lt;span class="k"&gt;default&lt;/span&gt; &lt;span class="k"&gt;for&lt;/span&gt; &lt;span class="n"&gt;pagination&lt;/span&gt;
+&lt;span class="o"&gt;&amp;gt;&lt;/span&gt; &lt;span class="n"&gt;Do&lt;/span&gt; &lt;span class="n"&gt;you&lt;/span&gt; &lt;span class="n"&gt;want&lt;/span&gt; &lt;span class="n"&gt;to&lt;/span&gt; &lt;span class="n"&gt;enable&lt;/span&gt; &lt;span class="n"&gt;article&lt;/span&gt; &lt;span class="n"&gt;pagination&lt;/span&gt;&lt;span class="o"&gt;?&lt;/span&gt; &lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;Y&lt;/span&gt;&lt;span class="o"&gt;/&lt;/span&gt;&lt;span class="n"&gt;n&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt; &lt;span class="n"&gt;n&lt;/span&gt;
+&lt;span class="o"&gt;&amp;gt;&lt;/span&gt; &lt;span class="n"&gt;How&lt;/span&gt; &lt;span class="n"&gt;many&lt;/span&gt; &lt;span class="n"&gt;articles&lt;/span&gt; &lt;span class="n"&gt;per&lt;/span&gt; &lt;span class="n"&gt;page&lt;/span&gt; &lt;span class="k"&gt;do&lt;/span&gt; &lt;span class="n"&gt;you&lt;/span&gt; &lt;span class="n"&gt;want&lt;/span&gt;&lt;span class="o"&gt;?&lt;/span&gt; &lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="mi"&gt;10&lt;/span&gt;&lt;span class="p"&gt;]&lt;/span&gt;
+&lt;span class="o"&gt;&amp;gt;&lt;/span&gt; &lt;span class="n"&gt;Do&lt;/span&gt; &lt;span class="n"&gt;you&lt;/span&gt; &lt;span class="n"&gt;want&lt;/span&gt; &lt;span class="n"&gt;to&lt;/span&gt; &lt;span class="n"&gt;generate&lt;/span&gt; &lt;span class="n"&gt;a&lt;/span&gt; &lt;span class="n"&gt;Fabfile&lt;/span&gt;&lt;span class="o"&gt;/&lt;/span&gt;&lt;span class="n"&gt;Makefile&lt;/span&gt; &lt;span class="n"&gt;to&lt;/span&gt; &lt;span class="n"&gt;automate&lt;/span&gt; &lt;span class="n"&gt;generation&lt;/span&gt; &lt;span class="n"&gt;and&lt;/span&gt; &lt;span class="n"&gt;publishing&lt;/span&gt;&lt;span class="o"&gt;?&lt;/span&gt; &lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;Y&lt;/span&gt;&lt;span class="o"&gt;/&lt;/span&gt;&lt;span class="n"&gt;n&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+&lt;span class="o"&gt;&amp;gt;&lt;/span&gt; &lt;span class="n"&gt;Do&lt;/span&gt; &lt;span class="n"&gt;you&lt;/span&gt; &lt;span class="n"&gt;want&lt;/span&gt; &lt;span class="n"&gt;an&lt;/span&gt; &lt;span class="k"&gt;auto&lt;/span&gt;&lt;span class="o"&gt;-&lt;/span&gt;&lt;span class="n"&gt;reload&lt;/span&gt; &lt;span class="o"&gt;&amp;amp;&lt;/span&gt; &lt;span class="n"&gt;simpleHTTP&lt;/span&gt; &lt;span class="n"&gt;script&lt;/span&gt; &lt;span class="n"&gt;to&lt;/span&gt; &lt;span class="n"&gt;assist&lt;/span&gt; &lt;span class="n"&gt;with&lt;/span&gt; &lt;span class="n"&gt;theme&lt;/span&gt; &lt;span class="n"&gt;and&lt;/span&gt; &lt;span class="n"&gt;site&lt;/span&gt; &lt;span class="n"&gt;development&lt;/span&gt;&lt;span class="o"&gt;?&lt;/span&gt; &lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;Y&lt;/span&gt;&lt;span class="o"&gt;/&lt;/span&gt;&lt;span class="n"&gt;n&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+&lt;span class="o"&gt;&amp;gt;&lt;/span&gt; &lt;span class="n"&gt;Do&lt;/span&gt; &lt;span class="n"&gt;you&lt;/span&gt; &lt;span class="n"&gt;want&lt;/span&gt; &lt;span class="n"&gt;to&lt;/span&gt; &lt;span class="n"&gt;upload&lt;/span&gt; &lt;span class="n"&gt;your&lt;/span&gt; &lt;span class="n"&gt;website&lt;/span&gt; &lt;span class="n"&gt;using&lt;/span&gt; &lt;span class="n"&gt;FTP&lt;/span&gt;&lt;span class="o"&gt;?&lt;/span&gt; &lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;y&lt;/span&gt;&lt;span class="o"&gt;/&lt;/span&gt;&lt;span class="n"&gt;N&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+&lt;span class="o"&gt;&amp;gt;&lt;/span&gt; &lt;span class="n"&gt;Do&lt;/span&gt; &lt;span class="n"&gt;you&lt;/span&gt; &lt;span class="n"&gt;want&lt;/span&gt; &lt;span class="n"&gt;to&lt;/span&gt; &lt;span class="n"&gt;upload&lt;/span&gt; &lt;span class="n"&gt;your&lt;/span&gt; &lt;span class="n"&gt;website&lt;/span&gt; &lt;span class="n"&gt;using&lt;/span&gt; &lt;span class="n"&gt;SSH&lt;/span&gt;&lt;span class="o"&gt;?&lt;/span&gt; &lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;y&lt;/span&gt;&lt;span class="o"&gt;/&lt;/span&gt;&lt;span class="n"&gt;N&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+&lt;span class="o"&gt;&amp;gt;&lt;/span&gt; &lt;span class="n"&gt;Do&lt;/span&gt; &lt;span class="n"&gt;you&lt;/span&gt; &lt;span class="n"&gt;want&lt;/span&gt; &lt;span class="n"&gt;to&lt;/span&gt; &lt;span class="n"&gt;upload&lt;/span&gt; &lt;span class="n"&gt;your&lt;/span&gt; &lt;span class="n"&gt;website&lt;/span&gt; &lt;span class="n"&gt;using&lt;/span&gt; &lt;span class="n"&gt;Dropbox&lt;/span&gt;&lt;span class="o"&gt;?&lt;/span&gt; &lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;y&lt;/span&gt;&lt;span class="o"&gt;/&lt;/span&gt;&lt;span class="n"&gt;N&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+&lt;span class="o"&gt;&amp;gt;&lt;/span&gt; &lt;span class="n"&gt;Do&lt;/span&gt; &lt;span class="n"&gt;you&lt;/span&gt; &lt;span class="n"&gt;want&lt;/span&gt; &lt;span class="n"&gt;to&lt;/span&gt; &lt;span class="n"&gt;upload&lt;/span&gt; &lt;span class="n"&gt;your&lt;/span&gt; &lt;span class="n"&gt;website&lt;/span&gt; &lt;span class="n"&gt;using&lt;/span&gt; &lt;span class="n"&gt;S3&lt;/span&gt;&lt;span class="o"&gt;?&lt;/span&gt; &lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;y&lt;/span&gt;&lt;span class="o"&gt;/&lt;/span&gt;&lt;span class="n"&gt;N&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+&lt;span class="o"&gt;&amp;gt;&lt;/span&gt; &lt;span class="n"&gt;Do&lt;/span&gt; &lt;span class="n"&gt;you&lt;/span&gt; &lt;span class="n"&gt;want&lt;/span&gt; &lt;span class="n"&gt;to&lt;/span&gt; &lt;span class="n"&gt;upload&lt;/span&gt; &lt;span class="n"&gt;your&lt;/span&gt; &lt;span class="n"&gt;website&lt;/span&gt; &lt;span class="n"&gt;using&lt;/span&gt; &lt;span class="n"&gt;Rackspace&lt;/span&gt; &lt;span class="n"&gt;Cloud&lt;/span&gt; &lt;span class="n"&gt;Files&lt;/span&gt;&lt;span class="o"&gt;?&lt;/span&gt; &lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;y&lt;/span&gt;&lt;span class="o"&gt;/&lt;/span&gt;&lt;span class="n"&gt;N&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+
+&lt;span class="o"&gt;--&lt;/span&gt; &lt;span class="n"&gt;Note&lt;/span&gt; &lt;span class="n"&gt;this&lt;/span&gt; &lt;span class="n"&gt;is&lt;/span&gt; &lt;span class="n"&gt;yes&lt;/span&gt; &lt;span class="k"&gt;for&lt;/span&gt; &lt;span class="n"&gt;Github&lt;/span&gt; &lt;span class="n"&gt;pages&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;
+&lt;span class="o"&gt;&amp;gt;&lt;/span&gt; &lt;span class="n"&gt;Do&lt;/span&gt; &lt;span class="n"&gt;you&lt;/span&gt; &lt;span class="n"&gt;want&lt;/span&gt; &lt;span class="n"&gt;to&lt;/span&gt; &lt;span class="n"&gt;upload&lt;/span&gt; &lt;span class="n"&gt;your&lt;/span&gt; &lt;span class="n"&gt;website&lt;/span&gt; &lt;span class="n"&gt;using&lt;/span&gt; &lt;span class="n"&gt;GitHub&lt;/span&gt; &lt;span class="n"&gt;Pages&lt;/span&gt;&lt;span class="o"&gt;?&lt;/span&gt; &lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;y&lt;/span&gt;&lt;span class="o"&gt;/&lt;/span&gt;&lt;span class="n"&gt;N&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt; &lt;span class="n"&gt;y&lt;/span&gt;
+&lt;span class="o"&gt;&amp;gt;&lt;/span&gt; &lt;span class="n"&gt;Is&lt;/span&gt; &lt;span class="n"&gt;this&lt;/span&gt; &lt;span class="n"&gt;your&lt;/span&gt; &lt;span class="n"&gt;personal&lt;/span&gt; &lt;span class="n"&gt;page&lt;/span&gt; &lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;username&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="n"&gt;github&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="n"&gt;io&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;&lt;span class="o"&gt;?&lt;/span&gt; &lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;y&lt;/span&gt;&lt;span class="o"&gt;/&lt;/span&gt;&lt;span class="n"&gt;N&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt; &lt;span class="n"&gt;N&lt;/span&gt;
+&lt;span class="n"&gt;Done&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt; &lt;span class="n"&gt;Your&lt;/span&gt; &lt;span class="n"&gt;new&lt;/span&gt; &lt;span class="n"&gt;project&lt;/span&gt; &lt;span class="n"&gt;is&lt;/span&gt; &lt;span class="n"&gt;available&lt;/span&gt; &lt;span class="n"&gt;at&lt;/span&gt; &lt;span class="o"&gt;~/&lt;/span&gt;&lt;span class="n"&gt;dev&lt;/span&gt;&lt;span class="o"&gt;/&lt;/span&gt;&lt;span class="n"&gt;blog&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;h3&gt;Initial Pelican Run&lt;/h3&gt;
+&lt;p&gt;This will generate your blog and run a webserver to view your content.&lt;/p&gt;
+&lt;p&gt;&lt;code&gt;make devserver&lt;/code&gt;&lt;/p&gt;
+&lt;p&gt;Open &lt;a href="http://localhost:8000"&gt;http://localhost:8000&lt;/a&gt; when it's finished to see what your blog looks like.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;Note&lt;/strong&gt;:
+On a second runthrough of these steps, I had an old instance of the devserver running.  Stop it and/or clean up its stale old pidfile with this command:&lt;/p&gt;
+&lt;p&gt;&lt;code&gt;./develop_server.sh stop&lt;/code&gt;&lt;/p&gt;
+&lt;h3&gt;Write a blog post!&lt;/h3&gt;
+&lt;p&gt;Now let's create that first post.  Make sure that terminal window's still open to that directory.  You can have the command prompt, that's fine.&lt;/p&gt;
+&lt;p&gt;Open Mou. If you don't have Mou, install it from http://mouapp.com/ &lt;/p&gt;
+&lt;p&gt;Create a file named "2014-0803.md" in the content directory, and add this text:  &lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span class="n"&gt;Title&lt;/span&gt;&lt;span class="o"&gt;:&lt;/span&gt; &lt;span class="n"&gt;First&lt;/span&gt; &lt;span class="n"&gt;Post&lt;/span&gt;&lt;span class="o"&gt;!&lt;/span&gt;
+&lt;span class="n"&gt;Date&lt;/span&gt;&lt;span class="o"&gt;:&lt;/span&gt; &lt;span class="mi"&gt;2014&lt;/span&gt;&lt;span class="o"&gt;-&lt;/span&gt;&lt;span class="mi"&gt;08&lt;/span&gt;&lt;span class="o"&gt;-&lt;/span&gt;&lt;span class="mi"&gt;03&lt;/span&gt; &lt;span class="mi"&gt;12&lt;/span&gt;&lt;span class="o"&gt;:&lt;/span&gt;&lt;span class="mi"&gt;50&lt;/span&gt;
+&lt;span class="n"&gt;Tags&lt;/span&gt;&lt;span class="o"&gt;:&lt;/span&gt; &lt;span class="n"&gt;fun&lt;/span&gt;
+&lt;span class="n"&gt;Category&lt;/span&gt;&lt;span class="o"&gt;:&lt;/span&gt; &lt;span class="n"&gt;Tech&lt;/span&gt;
+&lt;span class="n"&gt;Slug&lt;/span&gt;&lt;span class="o"&gt;:&lt;/span&gt; &lt;span class="n"&gt;my&lt;/span&gt;&lt;span class="o"&gt;-&lt;/span&gt;&lt;span class="n"&gt;first&lt;/span&gt;&lt;span class="o"&gt;-&lt;/span&gt;&lt;span class="n"&gt;post&lt;/span&gt;
+&lt;span class="n"&gt;Summary&lt;/span&gt;&lt;span class="o"&gt;:&lt;/span&gt; &lt;span class="n"&gt;First&lt;/span&gt; &lt;span class="n"&gt;Post&lt;/span&gt; &lt;span class="n"&gt;to&lt;/span&gt; &lt;span class="n"&gt;blog&lt;/span&gt;
+
+&lt;span class="err"&gt;#&lt;/span&gt; &lt;span class="n"&gt;Hey&lt;/span&gt;&lt;span class="o"&gt;,&lt;/span&gt; &lt;span class="n"&gt;an&lt;/span&gt; &lt;span class="n"&gt;initial&lt;/span&gt; &lt;span class="n"&gt;blog&lt;/span&gt; &lt;span class="n"&gt;post&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;
+
+&lt;span class="n"&gt;Just&lt;/span&gt; &lt;span class="n"&gt;getting&lt;/span&gt; &lt;span class="n"&gt;started&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;  &lt;span class="n"&gt;More&lt;/span&gt; &lt;span class="n"&gt;to&lt;/span&gt; &lt;span class="n"&gt;come&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;Save it away as "2014-0803.md" inside of your  /content … and your site will magically (and weirdly!) regenerate.&lt;/p&gt;
+&lt;p&gt;View it at &lt;a href="http://localhost:8000"&gt;http://localhost:8000&lt;/a&gt; again--or just refresh the page if you left your browser window open.   You may need to refresh.&lt;/p&gt;
+&lt;h2&gt;Add Git&lt;/h2&gt;
+&lt;p&gt;Now let's put this blog under git on your local machine... and then we'll push your local git repository to Github.&lt;/p&gt;
+&lt;h3&gt;Create a local git repo&lt;/h3&gt;
+&lt;p&gt;In that same directory at ~/dev/blog, create a local Git repo, and a .gitignore file, and then add content and associated files:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span class="n"&gt;git&lt;/span&gt; &lt;span class="n"&gt;init&lt;/span&gt;
+&lt;span class="n"&gt;echo&lt;/span&gt; &lt;span class="o"&gt;-&lt;/span&gt;&lt;span class="n"&gt;e&lt;/span&gt; &lt;span class="s"&gt;&amp;quot;venv&lt;/span&gt;&lt;span class="se"&gt;\n&lt;/span&gt;&lt;span class="s"&gt;*.pyc&lt;/span&gt;&lt;span class="se"&gt;\n&lt;/span&gt;&lt;span class="s"&gt;*.pid&lt;/span&gt;&lt;span class="se"&gt;\n&lt;/span&gt;&lt;span class="s"&gt;output/&lt;/span&gt;&lt;span class="se"&gt;\n&lt;/span&gt;&lt;span class="s"&gt;cache&lt;/span&gt;&lt;span class="se"&gt;\n&lt;/span&gt;&lt;span class="s"&gt;&amp;quot;&lt;/span&gt; &lt;span class="o"&gt;&amp;gt;&lt;/span&gt; &lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="n"&gt;gitignore&lt;/span&gt;
+&lt;span class="n"&gt;git&lt;/span&gt; &lt;span class="n"&gt;add&lt;/span&gt; &lt;span class="p"&gt;.&lt;/span&gt;
+&lt;span class="n"&gt;git&lt;/span&gt; &lt;span class="n"&gt;status&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;Make sure additional files aren't being checked in.  Mine looks like this:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span class="nx"&gt;Changes&lt;/span&gt; &lt;span class="k"&gt;to&lt;/span&gt; &lt;span class="nx"&gt;be&lt;/span&gt; &lt;span class="nx"&gt;committed&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;
+  &lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="nx"&gt;use&lt;/span&gt; &lt;span class="s2"&gt;&amp;quot;git rm --cached &amp;lt;file&amp;gt;...&amp;quot;&lt;/span&gt; &lt;span class="k"&gt;to&lt;/span&gt; &lt;span class="nx"&gt;unstage&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+
+    &lt;span class="nb"&gt;new&lt;/span&gt; &lt;span class="nb"&gt;file&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;   &lt;span class="bp"&gt;.&lt;/span&gt;&lt;span class="nx"&gt;gitignore&lt;/span&gt;
+    &lt;span class="nb"&gt;new&lt;/span&gt; &lt;span class="nb"&gt;file&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;   &lt;span class="nx"&gt;Makefile&lt;/span&gt;
+    &lt;span class="nb"&gt;new&lt;/span&gt; &lt;span class="nb"&gt;file&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;   &lt;span class="nb"&gt;content&lt;/span&gt;&lt;span class="p"&gt;/&lt;/span&gt;&lt;span class="nx"&gt;2014&lt;/span&gt;&lt;span class="o"&gt;-&lt;/span&gt;&lt;span class="mi"&gt;0803&lt;/span&gt;&lt;span class="bp"&gt;.&lt;/span&gt;&lt;span class="nx"&gt;md&lt;/span&gt;
+    &lt;span class="nb"&gt;new&lt;/span&gt; &lt;span class="nb"&gt;file&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;   &lt;span class="nx"&gt;develop_server.sh&lt;/span&gt;
+    &lt;span class="nb"&gt;new&lt;/span&gt; &lt;span class="nb"&gt;file&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;   &lt;span class="nx"&gt;fabfile.py&lt;/span&gt;
+    &lt;span class="nb"&gt;new&lt;/span&gt; &lt;span class="nb"&gt;file&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;   &lt;span class="nx"&gt;pelicanconf.py&lt;/span&gt;
+    &lt;span class="nb"&gt;new&lt;/span&gt; &lt;span class="nb"&gt;file&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;   &lt;span class="nx"&gt;publishconf.py&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;Commit to your local Git repo&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span class="n"&gt;git&lt;/span&gt; &lt;span class="n"&gt;commit&lt;/span&gt; &lt;span class="o"&gt;-&lt;/span&gt;&lt;span class="n"&gt;m&lt;/span&gt; &lt;span class="s"&gt;&amp;quot;Initial checkin&amp;quot;&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;h3&gt;Create a Github repo to hold your blog.&lt;/h3&gt;
+&lt;p&gt;Visit &lt;a href="https://github.com/new"&gt;https://github.com/new&lt;/a&gt;, and call it just "blog".  Make it public.  And you don't need to add a ReadMe.md, but if you do point it to your Github pages blog.&lt;/p&gt;
+&lt;h3&gt;Add Github as a remote repository&lt;/h3&gt;
+&lt;p&gt;Now we can add Github as a remote repository.  We will push changes when we're satisfied with them.&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span class="n"&gt;git&lt;/span&gt; &lt;span class="n"&gt;remote&lt;/span&gt; &lt;span class="n"&gt;add&lt;/span&gt; &lt;span class="n"&gt;origin&lt;/span&gt; &lt;span class="n"&gt;https&lt;/span&gt;&lt;span class="o"&gt;:&lt;/span&gt;&lt;span class="c1"&gt;//github.com/danlmarmot/blog.git&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;Push the current changes.  You'll need to do this longform command with the "-u origin master" for this very first push, by the way.   Later commits you can just do "git push origin master"&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span class="n"&gt;git&lt;/span&gt; &lt;span class="n"&gt;push&lt;/span&gt; &lt;span class="o"&gt;-&lt;/span&gt;&lt;span class="n"&gt;u&lt;/span&gt; &lt;span class="n"&gt;origin&lt;/span&gt; &lt;span class="n"&gt;master&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;h3&gt;Push to Github&lt;/h3&gt;
+&lt;p&gt;This part's easy, and this is what you need to do to update your blog.&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span class="n"&gt;make&lt;/span&gt; &lt;span class="n"&gt;github&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;And then view it on Github:  &lt;a href="https://danlmarmot.github.io/blog/"&gt;https://danlmarmot.github.io/blog/&lt;/a&gt;.  Note that it might take up to ten minutes for the blog to show up.&lt;/p&gt;
+&lt;p&gt;If you haven't used Git much, a good way to think of this pushing to Github as nothing more than sending updates to Github--don't think of Github as an authoritative source for your blog or some old-school master source code control server.  You're just telling Github that you're pushing new static content to it, generated on your own machine.  The real content is kept both on your machine and Github in the master branch.&lt;/p&gt;
+&lt;p&gt;As for the gh-pages branch, you can somewhat ignore it.  It's almost a build artifact, rather than a real source code/content branch that you directly manipulate.&lt;/p&gt;
+&lt;h3&gt;Lastly, a few notes on where this leaves your repository.&lt;/h3&gt;
+&lt;p&gt;When you do this, you'll be left on your master branch, and not the gh-pages branch.  In Github, you'll have two separate branches with no common ancestor node, which looks kind of weird but is fine.
+Github has a set of instructions at https://pages.github.com, but to be honest you don't ever need to go there--you can do everything from the command line once you make your Github repo.&lt;/p&gt;
+&lt;p&gt;That's all for now.&lt;/p&gt;</summary><category term="pelican"></category></entry><entry><title>First Post!</title><link href="https://danlmarmot.github.com/io/blog/2014/08/03/my-first-post/" rel="alternate"></link><updated>2014-08-03T12:50:00-07:00</updated><author><name>Dan McKean</name></author><id>tag:danlmarmot.github.com,2014-08-03:io/blog/2014/08/03/my-first-post/</id><summary type="html">&lt;h1&gt;Hey, an initial blog post.&lt;/h1&gt;
+&lt;p&gt;Just getting started.&lt;/p&gt;</summary><category term="fun"></category></entry></feed>
