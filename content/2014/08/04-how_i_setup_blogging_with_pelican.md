@@ -1,5 +1,4 @@
 Title: How I setup blogging with Pelican
-Date: 2014-08-04 18:55
 Tags: pelican
 Category: Tech
 Slug: blog-setup-with-pelican
@@ -183,7 +182,7 @@ As for the gh-pages branch, you can somewhat ignore it.  It's almost a build art
 When you do this, you'll be left on your master branch, and not the gh-pages branch.  In Github, you'll have two separate branches with no common ancestor node, which looks kind of weird but is fine.
 Github has a set of instructions at https://pages.github.com, but to be honest you don't ever need to go there--you can do everything from the command line once you make your Github repo.
 
-That's all folks!
+That's all for now.
 
 
 

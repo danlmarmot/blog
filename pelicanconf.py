@@ -8,8 +8,7 @@ SITEURL = 'http://localhost:8000/'
 
 PATH = 'content'
 
-TIMEZONE = 'Europe/Paris'
-
+TIMEZONE = 'America/Los_Angeles'
 DEFAULT_LANG = u'en'
 
 # Feed generation is usually not desired when developing
@@ -32,9 +31,16 @@ DEFAULT_PAGINATION = False
 
 # Uncomment following line if you want document-relative URLs when developing
 #RELATIVE_URLS = False
+PATH_METADATA = r'(?P<date>\d{4}\/\d{2}\/\d{2})-(?P<slug>.*)'
+
+SUMMARY_MAX_LENGTH = 50
 
 #THEME='pelican-themes/elegant'
 THEME = 'pelican-themes-custom/pelican-bootstrap3'
+# taken from Dandydev.net
+BOOTSTRAP_THEME = 'readable'
+#BOOTSTRAP_THEME = 'simplex'
+#BOOTSTRAP_THEME = 'journal'
 DISQUS_SITENAME = "dansrandombits"
 
 # Date-based URLs for posts

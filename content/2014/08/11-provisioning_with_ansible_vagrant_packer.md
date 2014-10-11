@@ -3,7 +3,6 @@ Date: 2014-08-11 18:55
 Tags: ansible, vagrant, packer
 Category: Tech
 Slug: provisioning-with-vagrant-ansible-packer
-Summary: A how-to on provisioning
 
 One big issue in using servers on cloud providers suck as Amazon Web Services, Rackspace, and Google Compute Engine is dealing with their provisioning and deployment--in other words, how to build them out to begin with.
 Sure, you can write lots of Bash scripts, invest in Puppet and Chef training and infrastructure, and script the whole thing out.  I've tried some of those, but generally found them real burdensome and in general they hinder productivity, not improve it.
