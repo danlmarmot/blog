@@ -1,5 +1,5 @@
 Title: How I setup blogging with Pelican
-Date: 2014-08-03 18:55
+Date: 2014-08-04 18:55
 Tags: pelican
 Category: Tech
 Slug: blog-setup-with-pelican
