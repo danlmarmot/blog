@@ -34,13 +34,13 @@ Yes, that sed one-liner looks odd but this is a Mac with BSD sed, and not GNU se
 
 This first script goes through and simply counts the number of lines with a's and b's in the Spark 1.1 Read Me.  It's not dependent on anything other than the Spark install location.
 
-Create a new file called readme_count_a_b.py, and dump this text into it:
+Create a new file called readme_count_ab.py, and dump this text into it:
 
 
 ```
 #!/usr/bin/env python
 
-# Run this with either python readme_count_a_b.py, or ./readme_count_a_b.py
+# Run this with either python readme_count_ab.py, or ./readme_count_ab.py
 
 import sys, os
 
@@ -64,7 +64,7 @@ assert(numAs is 83)
 assert(numBs is 38)
 ```
 
-Run this with ./readme_count_a_b.py
+Run this with ./readme_count_ab.py
 
 
 ## Add a second Python script - the word count
