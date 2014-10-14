@@ -113,7 +113,7 @@ Dan's Random Bits            </a>
 <p>Yes, that sed one-liner looks odd but this is a Mac with BSD sed, and not GNU sed.</p>
 <h2>Add your first Python script</h2>
 <p>This first script goes through and simply counts the number of lines with a's and b's in the Spark 1.1 Read Me.  It's not dependent on anything other than the Spark install location.</p>
-<p>Create a new file called readme_count_a_b.py, and dump this text into it:</p>
+<p>Create a new file called readme_count_ab.py, and dump this text into it:</p>
 <table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre> 1
  2
  3
@@ -139,7 +139,7 @@ Dan's Random Bits            </a>
 23
 24</pre></div></td><td class="code"><div class="highlight"><pre><span class="c">#!/usr/bin/env python</span>
 
-<span class="c"># Run this with either python readme_count_a_b.py, or ./readme_count_a_b.py</span>
+<span class="c"># Run this with either python readme_count_ab.py, or ./readme_count_ab.py</span>
 
 <span class="kn">import</span> <span class="nn">sys</span><span class="o">,</span> <span class="nn">os</span>
 
@@ -164,7 +164,7 @@ Dan's Random Bits            </a>
 </pre></div>
 </td></tr></table>
 
-<p>Run this with ./readme_count_a_b.py</p>
+<p>Run this with ./readme_count_ab.py</p>
 <h2>Add a second Python script - the word count</h2>
 <p>This next script also uses Spark to count words in the ReadMe.txt.  Go ahead and create a new file called readme_word_count.py, with this text inside:</p>
 <table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre> 1
@@ -277,18 +277,13 @@ cleanup is best left for another exercise; after all, so much of big data stuff 
                         </a>
                     </li>
                     <li class="list-group-item tag-4">
-                        <a href="//danlmarmot.github.io/blog/tag/ansible.html">
-                            ansible
-                        </a>
-                    </li>
-                    <li class="list-group-item tag-4">
                         <a href="//danlmarmot.github.io/blog/tag/pelican.html">
                             pelican
                         </a>
                     </li>
                     <li class="list-group-item tag-4">
-                        <a href="//danlmarmot.github.io/blog/tag/spark.html">
-                            spark
+                        <a href="//danlmarmot.github.io/blog/tag/ansible.html">
+                            ansible
                         </a>
                     </li>
                     <li class="list-group-item tag-4">
@@ -299,6 +294,11 @@ cleanup is best left for another exercise; after all, so much of big data stuff 
                     <li class="list-group-item tag-4">
                         <a href="//danlmarmot.github.io/blog/tag/fun.html">
                             fun
+                        </a>
+                    </li>
+                    <li class="list-group-item tag-4">
+                        <a href="//danlmarmot.github.io/blog/tag/spark.html">
+                            spark
                         </a>
                     </li>
                     <li class="list-group-item tag-4">

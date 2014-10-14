@@ -22,7 +22,7 @@
 &lt;p&gt;Yes, that sed one-liner looks odd but this is a Mac with BSD sed, and not GNU sed.&lt;/p&gt;
 &lt;h2&gt;Add your first Python script&lt;/h2&gt;
 &lt;p&gt;This first script goes through and simply counts the number of lines with a's and b's in the Spark 1.1 Read Me.  It's not dependent on anything other than the Spark install location.&lt;/p&gt;
-&lt;p&gt;Create a new file called readme_count_a_b.py, and dump this text into it:&lt;/p&gt;
+&lt;p&gt;Create a new file called readme_count_ab.py, and dump this text into it:&lt;/p&gt;
 &lt;table class="highlighttable"&gt;&lt;tr&gt;&lt;td class="linenos"&gt;&lt;div class="linenodiv"&gt;&lt;pre&gt; 1
  2
  3
@@ -48,7 +48,7 @@
 23
 24&lt;/pre&gt;&lt;/div&gt;&lt;/td&gt;&lt;td class="code"&gt;&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span class="c"&gt;#!/usr/bin/env python&lt;/span&gt;
 
-&lt;span class="c"&gt;# Run this with either python readme_count_a_b.py, or ./readme_count_a_b.py&lt;/span&gt;
+&lt;span class="c"&gt;# Run this with either python readme_count_ab.py, or ./readme_count_ab.py&lt;/span&gt;
 
 &lt;span class="kn"&gt;import&lt;/span&gt; &lt;span class="nn"&gt;sys&lt;/span&gt;&lt;span class="o"&gt;,&lt;/span&gt; &lt;span class="nn"&gt;os&lt;/span&gt;
 
@@ -73,7 +73,7 @@
 &lt;/pre&gt;&lt;/div&gt;
 &lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;
 
-&lt;p&gt;Run this with ./readme_count_a_b.py&lt;/p&gt;
+&lt;p&gt;Run this with ./readme_count_ab.py&lt;/p&gt;
 &lt;h2&gt;Add a second Python script - the word count&lt;/h2&gt;
 &lt;p&gt;This next script also uses Spark to count words in the ReadMe.txt.  Go ahead and create a new file called readme_word_count.py, with this text inside:&lt;/p&gt;
 &lt;table class="highlighttable"&gt;&lt;tr&gt;&lt;td class="linenos"&gt;&lt;div class="linenodiv"&gt;&lt;pre&gt; 1
