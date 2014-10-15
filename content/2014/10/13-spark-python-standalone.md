@@ -1,4 +1,4 @@
-Title: Spark 1.1 and standaone Python scripts
+Title: Spark 1.1 and standalone Python scripts
 Tags: spark, python
 Category: Tech
 comments: enabled
