@@ -2,7 +2,7 @@
 <html lang="en"
 >
 <head>
-    <title>First Post! - Dan's Random Bits</title>
+    <title>Listing AWS regions with Python - Dan's Random Bits</title>
     <!-- Using the latest rendering mode for IE -->
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta charset="utf-8">
@@ -10,11 +10,11 @@
 
 
 
-<link rel="canonical" href="https://danlmarmot.github.io/blog/2014/08/03/my-first-post/">
+<link rel="canonical" href="https://danlmarmot.github.io/blog/2014/10/23/python-get-list-aws-regions/">
 
         <meta name="author" content="Dan McKean" />
-        <meta name="keywords" content="fun" />
-        <meta name="description" content="Today I moved off an old blogging platform onto a new one--a static blog using Pelican and Markdown, and hosted on Github." />
+        <meta name="keywords" content="ansible,aws" />
+        <meta name="description" content="A short snippet to get a list of Amazon AWS regions in Python." />
 
 
 
@@ -65,10 +65,10 @@ Dan's Random Bits            </a>
         <article>
             <header class="page-header">
                 <h1>
-                    <a href="https://danlmarmot.github.io/blog/2014/08/03/my-first-post/"
+                    <a href="https://danlmarmot.github.io/blog/2014/10/23/python-get-list-aws-regions/"
                        rel="bookmark"
-                       title="Permalink to First Post!">
-                        First Post!
+                       title="Permalink to Listing AWS regions with Python">
+                        Listing AWS regions with Python
                     </a>
                 </h1>
             </header>
@@ -78,18 +78,53 @@ Dan's Random Bits            </a>
 <footer class="post-info">
     <span class="label label-default">Date</span>
     <span class="published">
-        <i class="fa fa-calendar"></i><time datetime="2014-08-03T12:50:00"> Sun 03 August 2014</time>
+        <i class="fa fa-calendar"></i><time datetime="2014-10-23T00:00:00"> Thu 23 October 2014</time>
     </span>
 
 
 
 <span class="label label-default">Tags</span>
-	<a href="https://danlmarmot.github.io/blog/tag/fun.html">fun</a>
+	<a href="https://danlmarmot.github.io/blog/tag/ansible.html">ansible</a>
+        /
+	<a href="https://danlmarmot.github.io/blog/tag/aws.html">aws</a>
     
 </footer><!-- /.post-info -->                    </div>
                 </div>
-                <h1>Hey, an initial blog post.</h1>
-<p>Just getting started.</p>
+                <p>With Amazon's announcement of the new Frankfurt AWS region (eu-central-1), I've gone back and reworked an couple of old Python scripts that had region lists hardcoded in them.</p>
+<p>I stopped hardcoding this a few years ago, and replaced it with this snippet of code.  You can just run it as a Python file, or from the command line.  It does require the Python package boto version 2.34.0 or higher to be installed.</p>
+<p>I also strip out the China region and the US Govcloud region, since I don't have services in either location, and I sort the list as well.</p>
+<h3>print_aws_regions.py</h3>
+<div class="highlight"><pre><span class="n">from</span> <span class="n">boto</span> <span class="n">import</span> <span class="n">ec2</span>
+
+<span class="n">REGIONS</span> <span class="o">=</span> <span class="n">sorted</span><span class="p">([</span><span class="n">r</span><span class="p">.</span><span class="n">name</span> <span class="k">for</span> <span class="n">r</span> <span class="n">in</span> <span class="n">ec2</span><span class="p">.</span><span class="n">regions</span><span class="p">()</span> <span class="k">if</span> <span class="n">r</span><span class="p">.</span><span class="n">name</span> <span class="n">not</span> <span class="n">in</span> <span class="p">[</span><span class="s">&quot;cn-north-1&quot;</span><span class="p">,</span> <span class="s">&quot;us-gov-west-1&quot;</span><span class="p">]])</span>
+
+<span class="k">for</span> <span class="n">r</span> <span class="n">in</span> <span class="n">REGIONS</span><span class="o">:</span>
+    <span class="n">print</span> <span class="n">r</span>
+</pre></div>
+
+
+<p>Output:</p>
+<div class="highlight"><pre><span class="n">ap</span><span class="o">-</span><span class="n">northeast</span><span class="o">-</span><span class="mi">1</span>
+<span class="n">ap</span><span class="o">-</span><span class="n">southeast</span><span class="o">-</span><span class="mi">1</span>
+<span class="n">ap</span><span class="o">-</span><span class="n">southeast</span><span class="o">-</span><span class="mi">2</span>
+<span class="n">eu</span><span class="o">-</span><span class="n">central</span><span class="o">-</span><span class="mi">1</span>
+<span class="n">eu</span><span class="o">-</span><span class="n">west</span><span class="o">-</span><span class="mi">1</span>
+<span class="n">sa</span><span class="o">-</span><span class="n">east</span><span class="o">-</span><span class="mi">1</span>
+<span class="n">us</span><span class="o">-</span><span class="n">east</span><span class="o">-</span><span class="mi">1</span>
+<span class="n">us</span><span class="o">-</span><span class="n">west</span><span class="o">-</span><span class="mi">1</span>
+<span class="n">us</span><span class="o">-</span><span class="n">west</span><span class="o">-</span><span class="mi">2</span>
+</pre></div>
+
+
+<h3>Command line version</h3>
+<p>The variables for Ansible are defined in group_vars/vagrant, which pulls them in from the two environment variables set on my Mac.</p>
+<div class="highlight"><pre><span class="n">python</span> <span class="o">-</span><span class="n">c</span> <span class="err">&#39;</span><span class="n">from</span> <span class="n">boto</span> <span class="n">import</span> <span class="n">ec2</span><span class="p">;</span><span class="n">REGIONS</span> <span class="o">=</span> <span class="n">sorted</span><span class="p">([</span><span class="n">r</span><span class="p">.</span><span class="n">name</span> <span class="k">for</span> <span class="n">r</span> <span class="n">in</span> <span class="n">ec2</span><span class="p">.</span><span class="n">regions</span><span class="p">()</span> <span class="k">if</span> <span class="n">r</span><span class="p">.</span><span class="n">name</span> <span class="n">not</span> <span class="n">in</span> <span class="p">[</span><span class="s">&quot;cn-north-1&quot;</span><span class="p">,</span> <span class="s">&quot;us-gov-west-1&quot;</span><span class="p">]]);</span> <span class="n">print</span> <span class="n">REGIONS</span><span class="err">&#39;</span>
+</pre></div>
+
+
+<p>Output:</p>
+<div class="highlight"><pre><span class="p">[</span><span class="n">u</span><span class="err">&#39;</span><span class="n">ap</span><span class="o">-</span><span class="n">northeast</span><span class="o">-</span><span class="mi">1</span><span class="err">&#39;</span><span class="p">,</span> <span class="n">u</span><span class="err">&#39;</span><span class="n">ap</span><span class="o">-</span><span class="n">southeast</span><span class="o">-</span><span class="mi">1</span><span class="err">&#39;</span><span class="p">,</span> <span class="n">u</span><span class="err">&#39;</span><span class="n">ap</span><span class="o">-</span><span class="n">southeast</span><span class="o">-</span><span class="mi">2</span><span class="err">&#39;</span><span class="p">,</span> <span class="n">u</span><span class="err">&#39;</span><span class="n">eu</span><span class="o">-</span><span class="n">central</span><span class="o">-</span><span class="mi">1</span><span class="err">&#39;</span><span class="p">,</span> <span class="n">u</span><span class="err">&#39;</span><span class="n">eu</span><span class="o">-</span><span class="n">west</span><span class="o">-</span><span class="mi">1</span><span class="err">&#39;</span><span class="p">,</span> <span class="n">u</span><span class="err">&#39;</span><span class="n">sa</span><span class="o">-</span><span class="n">east</span><span class="o">-</span><span class="mi">1</span><span class="err">&#39;</span><span class="p">,</span> <span class="n">u</span><span class="err">&#39;</span><span class="n">us</span><span class="o">-</span><span class="n">east</span><span class="o">-</span><span class="mi">1</span><span class="err">&#39;</span><span class="p">,</span> <span class="n">u</span><span class="err">&#39;</span><span class="n">us</span><span class="o">-</span><span class="n">west</span><span class="o">-</span><span class="mi">1</span><span class="err">&#39;</span><span class="p">,</span> <span class="n">u</span><span class="err">&#39;</span><span class="n">us</span><span class="o">-</span><span class="n">west</span><span class="o">-</span><span class="mi">2</span><span class="err">&#39;</span><span class="p">]</span>
+</pre></div>
             </div>
             <!-- /.entry-content -->
     <hr/>
@@ -101,8 +136,8 @@ Dan's Random Bits            </a>
             /* * * CONFIGURATION VARIABLES: EDIT BEFORE PASTING INTO YOUR WEBPAGE * * */
             var disqus_shortname = 'dansrandombits'; // required: replace example with your forum shortname
 
-                    var disqus_identifier = 'my-first-post';
-                var disqus_url = 'https://danlmarmot.github.io/blog/2014/08/03/my-first-post/';
+                    var disqus_identifier = 'python-get-list-aws-regions';
+                var disqus_url = 'https://danlmarmot.github.io/blog/2014/10/23/python-get-list-aws-regions/';
 
             var disqus_config = function () {
                 this.language = "en";
