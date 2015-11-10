@@ -78,7 +78,7 @@ Dan's Random Bits            </a>
 <footer class="post-info">
     <span class="label label-default">Date</span>
     <span class="published">
-        <i class="fa fa-calendar"></i><time datetime="2014-10-13T00:00:00"> Mon 13 October 2014</time>
+        <i class="fa fa-calendar"></i><time datetime="2014-10-13T00:00:00-07:00"> Mon 13 October 2014</time>
     </span>
 
 
@@ -94,19 +94,19 @@ Dan's Random Bits            </a>
 <h2>Install Spark</h2>
 <p>We're going to install Spark in ~/bin/spark from pre-built versions on Apache.  You already should've installed Java--this post assumes an Oracle version of Java.</p>
 <p>Open a Terminal window, then run these commands:</p>
-<div class="highlight"><pre><span class="n">mkdir</span> <span class="o">-</span><span class="n">p</span> <span class="o">~/</span><span class="n">bin</span><span class="o">/</span><span class="n">spark</span><span class="p">;</span> <span class="n">cd</span> <span class="err">$</span><span class="n">_</span>
-<span class="n">wget</span> <span class="n">http</span><span class="o">:</span><span class="c1">//d3kbcqa49mib13.cloudfront.net/spark-1.1.0-bin-hadoop2.4.tgz</span>
-<span class="n">tar</span> <span class="o">-</span><span class="n">zxvf</span> <span class="n">spark</span><span class="o">-</span><span class="mf">1.1.0</span><span class="o">-</span><span class="n">bin</span><span class="o">-</span><span class="n">hadoop2</span><span class="mf">.4</span><span class="p">.</span><span class="n">tgz</span><span class="p">;</span> <span class="n">ln</span> <span class="o">-</span><span class="n">s</span> <span class="n">spark</span><span class="o">-</span><span class="mf">1.1.0</span><span class="o">-</span><span class="n">bin</span><span class="o">-</span><span class="n">hadoop2</span><span class="mf">.4</span> <span class="n">current</span><span class="p">;</span> <span class="n">cd</span> <span class="n">current</span>
-<span class="n">bin</span><span class="o">/</span><span class="n">pyspark</span>
+<div class="highlight"><pre><span class="x">mkdir -p ~/bin/spark; cd </span><span class="p">$</span><span class="nv">_</span><span class="x"></span>
+<span class="x">wget http://d3kbcqa49mib13.cloudfront.net/spark-1.1.0-bin-hadoop2.4.tgz</span>
+<span class="x">tar -zxvf spark-1.1.0-bin-hadoop2.4.tgz; ln -s spark-1.1.0-bin-hadoop2.4 current; cd current</span>
+<span class="x">bin/pyspark</span>
 </pre></div>
 
 
 <p>Note that I'm putting Spark as a symlink at ~/bin/spark/current, to allow for any scripts I create to reference a fixed location for Spark.</p>
 <h3>Turn down Spark's logging verbosity</h3>
 <p>Spark's logging spews out a lot.  Turn it down with these two commands:</p>
-<div class="highlight"><pre><span class="n">cd</span> <span class="o">~/</span><span class="n">bin</span><span class="o">/</span><span class="n">spark</span><span class="o">/</span><span class="n">current</span>
-<span class="n">cp</span> <span class="n">conf</span><span class="o">/</span><span class="n">log4j</span><span class="p">.</span><span class="n">properties</span><span class="p">.</span><span class="n">template</span> <span class="n">conf</span><span class="o">/</span><span class="n">log4j</span><span class="p">.</span><span class="n">properties</span>
-<span class="n">sed</span> <span class="o">-</span><span class="n">i</span><span class="err">&#39;&#39;</span> <span class="o">-</span><span class="n">e</span> <span class="err">&#39;</span><span class="n">s</span><span class="o">/</span><span class="n">log4j</span><span class="p">.</span><span class="n">rootCategory</span><span class="o">=</span><span class="n">INFO</span><span class="o">/</span><span class="n">log4j</span><span class="p">.</span><span class="n">rootCategory</span><span class="o">=</span><span class="n">WARN</span><span class="o">/</span><span class="n">g</span><span class="err">&#39;</span> <span class="n">conf</span><span class="o">/</span><span class="n">log4j</span><span class="p">.</span><span class="n">properties</span>
+<div class="highlight"><pre>cd ~/bin/spark/current
+cp conf/log4j.properties.template conf/log4j.properties
+sed -i&#39;&#39; -e &#39;s/log4j.rootCategory=INFO/log4j.rootCategory=WARN/g&#39; conf/log4j.properties
 </pre></div>
 
 
@@ -271,51 +271,6 @@ cleanup is best left for another exercise; after all, so much of big data stuff 
 
             <li class="list-group-item"><a href="https://danlmarmot.github.io/blog/"><h4><i class="fa fa-tags fa-lg"></i><span class="icon-label">Tags</span></h4></a>
                 <ul class="list-group " id="tags">
-                    <li class="list-group-item tag-1">
-                        <a href="https://danlmarmot.github.io/blog/tag/ansible.html">
-                            ansible
-                        </a>
-                    </li>
-                    <li class="list-group-item tag-1">
-                        <a href="https://danlmarmot.github.io/blog/tag/python.html">
-                            python
-                        </a>
-                    </li>
-                    <li class="list-group-item tag-1">
-                        <a href="https://danlmarmot.github.io/blog/tag/aws.html">
-                            aws
-                        </a>
-                    </li>
-                    <li class="list-group-item tag-4">
-                        <a href="https://danlmarmot.github.io/blog/tag/spark.html">
-                            spark
-                        </a>
-                    </li>
-                    <li class="list-group-item tag-4">
-                        <a href="https://danlmarmot.github.io/blog/tag/blogging.html">
-                            blogging
-                        </a>
-                    </li>
-                    <li class="list-group-item tag-4">
-                        <a href="https://danlmarmot.github.io/blog/tag/vagrant.html">
-                            vagrant
-                        </a>
-                    </li>
-                    <li class="list-group-item tag-4">
-                        <a href="https://danlmarmot.github.io/blog/tag/pelican.html">
-                            pelican
-                        </a>
-                    </li>
-                    <li class="list-group-item tag-4">
-                        <a href="https://danlmarmot.github.io/blog/tag/fun.html">
-                            fun
-                        </a>
-                    </li>
-                    <li class="list-group-item tag-4">
-                        <a href="https://danlmarmot.github.io/blog/tag/packer.html">
-                            packer
-                        </a>
-                    </li>
                 </ul>
             </li>
     <li class="list-group-item"><h4><i class="fa fa-external-link-square fa-lg"></i><span class="icon-label">Links</span></h4>

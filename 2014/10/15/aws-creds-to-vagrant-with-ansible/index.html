@@ -78,7 +78,7 @@ Dan's Random Bits            </a>
 <footer class="post-info">
     <span class="label label-default">Date</span>
     <span class="published">
-        <i class="fa fa-calendar"></i><time datetime="2014-10-15T00:00:00"> Wed 15 October 2014</time>
+        <i class="fa fa-calendar"></i><time datetime="2014-10-15T00:00:00-07:00"> Wed 15 October 2014</time>
     </span>
 
 
@@ -87,27 +87,29 @@ Dan's Random Bits            </a>
 	<a href="https://danlmarmot.github.io/blog/tag/ansible.html">ansible</a>
         /
 	<a href="https://danlmarmot.github.io/blog/tag/aws.html">aws</a>
-    
+    <span class="label label-default">Lang</span>
+	<a href="https://danlmarmot.github.io/blog/2014/10/23/aws-creds-to-vagrant-with-ansible/">en</a>
+
 </footer><!-- /.post-info -->                    </div>
                 </div>
                 <p>I needed my Vagrant instance to have AWS credentials to access an S3 bucket, but didn't want to hardcode them anywhere.  I simple wanted to pass the values of the environment variables to Vagrant, and have it use those.</p>
 <p>Since I was going to use Boto to get at that S3 bucket, I figured I just needed a way to set the variables in /etc/boto.conf on the Vagrant instance.</p>
 <h3>The Vagrantfile</h3>
-<div class="highlight"><pre><span class="n">VAGRANTFILE_API_VERSION</span> <span class="o">=</span> <span class="s">&quot;2&quot;</span>
-<span class="n">Vagrant</span><span class="p">.</span><span class="n">configure</span><span class="p">(</span><span class="n">VAGRANTFILE_API_VERSION</span><span class="p">)</span> <span class="k">do</span> <span class="o">|</span><span class="n">config</span><span class="o">|</span>
+<div class="highlight"><pre>VAGRANTFILE_API_VERSION = &quot;2&quot;
+Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
 
-  <span class="n">config</span><span class="p">.</span><span class="n">vm</span><span class="p">.</span><span class="n">define</span> <span class="s">&quot;web&quot;</span> <span class="k">do</span> <span class="o">|</span><span class="n">web</span><span class="o">|</span>
-    <span class="n">web</span><span class="p">.</span><span class="n">vm</span><span class="p">.</span><span class="n">box</span> <span class="o">=</span> <span class="s">&quot;ubuntu/trusty64&quot;</span>
-    <span class="n">web</span><span class="p">.</span><span class="n">vm</span><span class="p">.</span><span class="n">provision</span> <span class="s">&quot;ansible&quot;</span> <span class="k">do</span> <span class="o">|</span><span class="n">ansible</span><span class="o">|</span>
-      <span class="n">ansible</span><span class="p">.</span><span class="n">extra_vars</span> <span class="o">=</span> <span class="s">&quot;@group_vars/vagrant&quot;</span>
-      <span class="n">ansible</span><span class="p">.</span><span class="n">groups</span> <span class="o">=</span> <span class="p">{</span>
-        <span class="s">&quot;vagrant&quot;</span> <span class="o">=&gt;</span> <span class="p">[</span><span class="s">&quot;web&quot;</span><span class="p">]</span>
-      <span class="p">}</span>     
-      <span class="n">ansible</span><span class="p">.</span><span class="n">playbook</span> <span class="o">=</span> <span class="s">&quot;web-vagrant.yml&quot;</span>
-    <span class="n">end</span>
-  <span class="n">end</span>
+  config.vm.define &quot;web&quot; do |web|
+    web.vm.box = &quot;ubuntu/trusty64&quot;
+    web.vm.provision &quot;ansible&quot; do |ansible|
+      ansible.extra_vars = &quot;@group_vars/vagrant&quot;
+      ansible.groups = {
+        &quot;vagrant&quot; =&gt; [&quot;web&quot;]
+      }     
+      ansible.playbook = &quot;web-vagrant.yml&quot;
+    end
+  end
 
-<span class="n">end</span>
+end
 </pre></div>
 
 
@@ -124,18 +126,18 @@ Dan's Random Bits            </a>
 
 <h3>The Ansible playbook</h3>
 <p>The playbook at web-vagrant.yml that defines Anisble tasks has this section in it.  Note it doesn't have:</p>
-<div class="highlight"><pre><span class="o">-</span> <span class="n">name</span><span class="o">:</span> <span class="n">Copy</span> <span class="n">AWS</span> <span class="n">creds</span> <span class="n">from</span> <span class="n">Vagrant</span> <span class="n">host</span> <span class="n">to</span> <span class="n">Vagrant</span> <span class="n">VM</span>
-  <span class="nl">hosts:</span> <span class="n">all</span>
-  <span class="nl">user:</span> <span class="s">&quot;{{ ansible_ssh_user }}&quot;</span>
-  <span class="nl">sudo:</span> <span class="n">yes</span>
-  <span class="nl">gather_facts:</span> <span class="nb">false</span>
+<div class="highlight"><pre><span class="x">- name: Copy AWS creds from Vagrant host to Vagrant VM</span>
+<span class="x">  hosts: all</span>
+<span class="x">  user: &quot;</span><span class="cp">{{</span> <span class="nv">ansible_ssh_user</span> <span class="cp">}}</span><span class="x">&quot;</span>
+<span class="x">  sudo: yes</span>
+<span class="x">  gather_facts: false</span>
 
-  <span class="nl">tasks:</span>
-  <span class="o">-</span> <span class="n">name</span><span class="o">:</span> <span class="n">Create</span> <span class="n">the</span> <span class="n">boto</span> <span class="n">config</span> <span class="n">file</span>
-    <span class="nl">template:</span> <span class="o">&gt;</span>
-      <span class="n">src</span><span class="o">=</span><span class="n">vagrant</span><span class="o">/</span><span class="n">templates</span><span class="o">/</span><span class="n">boto</span><span class="p">.</span><span class="n">cfg</span><span class="p">.</span><span class="n">j2</span>
-      <span class="n">dest</span><span class="o">=/</span><span class="n">etc</span><span class="o">/</span><span class="n">boto</span><span class="p">.</span><span class="n">cfg</span>
-    <span class="nl">when:</span> <span class="n">group_name</span> <span class="o">==</span> <span class="s">&quot;vagrant&quot;</span>
+<span class="x">  tasks:</span>
+<span class="x">  - name: Create the boto config file</span>
+<span class="x">    template: &gt;</span>
+<span class="x">      src=vagrant/templates/boto.cfg.j2</span>
+<span class="x">      dest=/etc/boto.cfg</span>
+<span class="x">    when: group_name == &quot;vagrant&quot;</span>
 </pre></div>
 
 
@@ -149,28 +151,28 @@ Dan's Random Bits            </a>
 
 <h2>Testing this out</h2>
 <p>With Ansible, Vagrant, and Virtualbox installled, create these four files and put them in their correct places.  The directory structure should look like this:</p>
-<div class="highlight"><pre><span class="p">.</span>
-<span class="err">├──</span> <span class="n">Vagrantfile</span>
-<span class="err">├──</span> <span class="n">group_vars</span>
-<span class="err">│  </span> <span class="err">└──</span> <span class="n">vagrant</span>
-<span class="err">├──</span> <span class="n">vagrant</span>
-<span class="err">│  </span> <span class="err">└──</span> <span class="n">templates</span>
-<span class="err">│  </span>     <span class="err">└──</span> <span class="n">boto</span><span class="p">.</span><span class="n">cfg</span><span class="p">.</span><span class="n">j2</span>
-<span class="err">└──</span> <span class="n">web</span><span class="o">-</span><span class="n">vagrant</span><span class="p">.</span><span class="n">yml</span>
+<div class="highlight"><pre>.
+├── Vagrantfile
+├── group_vars
+│   └── vagrant
+├── vagrant
+│   └── templates
+│       └── boto.cfg.j2
+└── web-vagrant.yml
 </pre></div>
 
 
 <p>Open a command prompt, and type these commands:</p>
-<div class="highlight"><pre><span class="n">vagrant</span> <span class="n">up</span>
-<span class="n">vagrant</span> <span class="n">ssh</span>
-<span class="n">cat</span> <span class="o">/</span><span class="n">etc</span><span class="o">/</span><span class="n">boto</span><span class="p">.</span><span class="n">cfg</span>
+<div class="highlight"><pre>vagrant up
+vagrant ssh
+cat /etc/boto.cfg
 </pre></div>
 
 
 <p>The AWS keys from your Mac should be now inserted into boto.cfg.</p>
 <p>To reprovision the Vagrant box, use "vagrant provision" to rerun the Ansible playbook.</p>
 <p>When you're done, dispose of the Vagrant VM with</p>
-<div class="highlight"><pre><span class="n">vagrant</span> <span class="n">destroy</span>
+<div class="highlight"><pre>vagrant destroy
 </pre></div>
 
 
@@ -223,51 +225,6 @@ Dan's Random Bits            </a>
 
             <li class="list-group-item"><a href="https://danlmarmot.github.io/blog/"><h4><i class="fa fa-tags fa-lg"></i><span class="icon-label">Tags</span></h4></a>
                 <ul class="list-group " id="tags">
-                    <li class="list-group-item tag-1">
-                        <a href="https://danlmarmot.github.io/blog/tag/ansible.html">
-                            ansible
-                        </a>
-                    </li>
-                    <li class="list-group-item tag-1">
-                        <a href="https://danlmarmot.github.io/blog/tag/python.html">
-                            python
-                        </a>
-                    </li>
-                    <li class="list-group-item tag-1">
-                        <a href="https://danlmarmot.github.io/blog/tag/aws.html">
-                            aws
-                        </a>
-                    </li>
-                    <li class="list-group-item tag-4">
-                        <a href="https://danlmarmot.github.io/blog/tag/spark.html">
-                            spark
-                        </a>
-                    </li>
-                    <li class="list-group-item tag-4">
-                        <a href="https://danlmarmot.github.io/blog/tag/blogging.html">
-                            blogging
-                        </a>
-                    </li>
-                    <li class="list-group-item tag-4">
-                        <a href="https://danlmarmot.github.io/blog/tag/vagrant.html">
-                            vagrant
-                        </a>
-                    </li>
-                    <li class="list-group-item tag-4">
-                        <a href="https://danlmarmot.github.io/blog/tag/pelican.html">
-                            pelican
-                        </a>
-                    </li>
-                    <li class="list-group-item tag-4">
-                        <a href="https://danlmarmot.github.io/blog/tag/fun.html">
-                            fun
-                        </a>
-                    </li>
-                    <li class="list-group-item tag-4">
-                        <a href="https://danlmarmot.github.io/blog/tag/packer.html">
-                            packer
-                        </a>
-                    </li>
                 </ul>
             </li>
     <li class="list-group-item"><h4><i class="fa fa-external-link-square fa-lg"></i><span class="icon-label">Links</span></h4>
