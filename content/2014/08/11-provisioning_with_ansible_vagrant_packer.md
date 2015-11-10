@@ -17,7 +17,6 @@ To get on the same page, here's some terms and conventions I'm using in this art
 
 ###Provisioning
 
-
 Provisioning is the initial configuration and setup of a machine instance, including installation of all pre-requisite packages and software, creation of user and service accounts, and configuration. It's what you have to do before you install any of your applications. Provisioning also generally includes common monitoring tools and utilities to make sure the machine can update its health status or emit metrics to the operations infrastructure.
 
 ###Deployment
@@ -34,7 +33,9 @@ Machine images are snapshots of machine, usually with all software and dependenc
 This document is really meant to be used by Mac users, and in particular folks running MacOS 10.9. Vagrant/Packer/Ansible are all oriented towards various Unix flavors, and don't fully support Windows. Other operating systems related to Linux are supported, such as Mac OS X, Ubuntu, Centos, Fedora, AmazonLinux, and versions of FreeBSD.  But I'm just using my Mac.
 
 ## Step 0 - Clone the Github repository
-For this demo, the code's on Github at https://github.com/danlmarmot/demo-ansible-vagrant-packer
+For this demo, the code's on Github.  You can get it with this command
+ 
+`git clone https://github.com/danlmarmot/demo-ansible-vagrant-packer`
 
 Clone it onto your local Mac--if you need help at this point, see the Github help pages.
 
@@ -52,20 +53,16 @@ VirtualBox is available at https://www.virtualbox.org/wiki/Downloads.
 
 Vagrant is at https://www.vagrantup.com/downloads.html
 
-Once you've installed, enter these command to verify your installation
-
-
+Once you've installed, enter these commands to verify your installation
 At a command prompt type the following and ensure there aren't any errors.
 
 
-```
-vagrant
-vagrant -v
-```
+`vagrant -v`
+
 ### Initialize Vagrant
 Look at the Vagrantfile at the root of your checkout. It should look like this if you've checked it out from Git -- if you haven't, make it look like this:
 
-```
+```ruby
 Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
   config.vm.box = "ubuntu/trusty64"
   config.vm.network :private_network, ip: "192.168.111.222"
@@ -73,6 +70,7 @@ end
 ```
 This just says launch an Ubuntu Trusty 64-bit image (which is Ubuntu 14.04 LTS, released in April 2014).
 
+*A side note: Vagrantfiles are written in Ruby syntax--if you know Ruby, you can add additional logic to them.*
 
 Launch the VM with 'vagrant up':
 
@@ -81,7 +79,7 @@ Launch the VM with 'vagrant up':
 
 You should see:
 
-```
+```text
 Bringing machine 'default' up with 'virtualbox' provider...
 ==> default: Box 'ubuntu/trusty64' could not be found. Attempting to find and
 install...
@@ -97,7 +95,6 @@ Connect with SSH to the Vagrant VM:
 vagrant ssh
 Welcome to Ubuntu 14.04 LTS (GNU/Linux 3.13.0-24-generic x86_64)
 ```
-
 
 Now you've got a Vagrant-managed VM to work with! Exit the SSH prompt with:
 
@@ -131,19 +128,15 @@ We will install Ansible globally, and not in a virtual environment–it's not a 
 
 Run these two commands to install Ansible. The first ensures pip is installed (the standard Python package manager), then the next installs or upgrades Ansible if you've previously installed it.
 
-```
-sudo easy_install pip
-sudo pip install ansible --upgrade
-
-```
+`sudo easy_install pip; sudo pip install ansible --upgrade`
 
 ### An Important XCode Gotcha
-On MacOS X with XCode 5.1, if you get an error about "-Wno-error=unused-command-line-argument-hard-error-in-future" you can supress the warning by installing Ansible with this ugly command.
+On MacOS X with some versions of XCode, if you get an error about "-Wno-error=unused-command-line-argument-hard-error-in-future" you can supress the warning by installing Ansible with this ugly command.
 
 `sudo ARCHFLAGS=-Wno-error=unused-command-line-argument-hard-error-in-future pip install ansible --upgrade`
 
 
-Side note: This is a tedious warning, and if you install other Python packages or Ruby gems that require compiling you'll hit this over and over. You can add this your your bash_profile on your Mac to get around this.
+Side note: This is a tedious warning, and if you install other Python packages or Ruby gems that require compiling you'll hit this over and over. You can add this your your ~/.bash_profile on your Mac to get around this.
 
 `echo export ARCHFLAGS=-Wno-error=unused-command-line-argument-hard-error-in-future >>
 ~/.bash_profile; source ~/.bash_profile`
@@ -158,7 +151,7 @@ This playbook will be at the top of our directory, and we'll name it "playbook.y
 
 You can write this out yourself, or just look at what Git checked out.
 
-```
+```text
 ---
 - name: Verify ansible works
   hosts: all
@@ -168,12 +161,12 @@ You can write this out yourself, or just look at what Git checked out.
   tasks:
     - name: Create /tmp/foo
       file: path=/tmp/foo state=directory
-
 ```
+
 ### Update the Vagrantfile with Ansible provisioning
 Now let's add the Ansible provisioner to the Vagrantfile--that's the file that tells Vagrant to use Ansible to build out the VM. That entire file should look like this.
 
-```
+```ruby
 VAGRANTFILE_API_VERSION = "2"
 Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
   config.vm.box = "ubuntu/trusty64"
@@ -185,16 +178,15 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
   end
 end
 ```
+
 ###Provision the VM
 This is where the magic happens. Run it from a command prompt with
 
-
 `vagrant provision`
-
 
 If everything's setup correctly, you'll see output similar to this:
 
-```
+```text
 ==> default: Running provisioner: ansible...
 ANSIBLE_FORCE_COLOR=true ANSIBLE_HOST_KEY_CHECKING=false PYTHONUNBUFFERED=1 ansible-playbook --private-key=/Users/Marmot/.vagrant.d/insecure_private_key --user=vagrant --limit='default' --inventory-file=/Users/Marmot/dev/bb-danlmarmot/demo-ansible-vagrant-packer/.vagrant/provisioners/ansible/inventory --extra-vars={"ansible_ssh_user":"vagrant"} -vv playbook.yml
 
@@ -208,8 +200,6 @@ PLAY RECAP ********************************************************************
 default                    : ok=1    changed=1    unreachable=0    failed=0
 ```
 
-
-
 At this point Ansible and Vagrant are working with each other. That's a big win, and now we can start doing more complicated things.
 
 ####Troubleshooting "vagrant provision"
@@ -218,10 +208,11 @@ At this point Ansible and Vagrant are working with each other. That's a big win,
 
 If you get a message similar to this:
 
-```
+```text
 vagrant provision
 ==> default: VM not created. Moving on...
 ```
+
 Fix it by:
 
 `vagrant up`
@@ -232,21 +223,22 @@ This is just simply because the Vagrant VM isn't running, so it can't receive th
 
 Now let's verify this worked by SSH-ing into the Vagrant VM.
 
-```
+```text
 vagrant ssh
 vagrant@vagrant-ubuntu-trusty-64:~$ ls /tmp
 foo
 ```
+
 Exit out of the SSH session
 
-```
+```text
 vagrant@vagrant-ubuntu-trusty-64:~$ exit
 ```
 ### Destroy the Vagrant VM
 
 We won't be using this simple VM in the following steps--it was good to verify that Ansible is setup correctly--so we'll destroy it.
 
-```
+```text
 vagrant destroy
     default: Are you sure you want to destroy the 'default' VM? [y/N] y
 ==> default: Forcing shutdown of VM...
@@ -294,7 +286,7 @@ And let's edit some files. Note that each file should start with the three dashe
 This is the main list of tasks that Ansible performs when it's provisioning the nginx role. These tasks are performed sequentially, there's no "convergence" phase at runtime as there are in other tools.
 
 
-```
+```text
 ---
  - name: add nginx ppa repository
    apt_repository: repo='ppa:nginx/stable'
@@ -332,7 +324,7 @@ We have two handlers to do this.  The 'restart nginx' handler (which is called w
 
 That second handler just performs a "curl" command to make sure nginx is working.
 
-```
+```text
 ---
  - name: restart nginx
    service: name=nginx state=restarted
@@ -345,7 +337,7 @@ That second handler just performs a "curl" command to make sure nginx is working
 ####roles/nginx/files/nginx.conf
 The nginx.conf file.  This is just a plain text file.  Ansible supports templates, but we're not using them in this walk-through.
 
-```
+```text
 user www-data;
 worker_processes 4;
 pid /run/nginx.pid;
@@ -368,7 +360,7 @@ http {
 ####roles/nginx/files/static.conf
 This text file just says where the static files live. We're putting them in /opt/static (many people put them in somewhere in /var, but I prefer to serve sites and web applications out of /opt/*)
 
-```
+```text
 server {
 	listen 8080;
 	location / {
@@ -381,7 +373,7 @@ server {
 ####roles/nginx/files/index.html
 A static webpage that's served by nginx.
 
-```
+```text
  <html>
  <h2>Hey nginx works!</h2>
  </html>
@@ -389,7 +381,8 @@ A static webpage that's served by nginx.
 
 ####webserver.yml
 This is an Ansible playbook to build out a webserver in our Vagrant environment.
-```
+
+```text
 ---
 # file: webserver.yml
 - hosts: all
@@ -398,7 +391,6 @@ This is an Ansible playbook to build out a webserver in our Vagrant environment.
   gather_facts: false
   roles:
     - nginx
-
 ```
 
 
@@ -407,7 +399,7 @@ This is an Ansible playbook to build out a webserver in our Vagrant environment.
 This describes the site.  There's just the one server type in there now.
 
 
-```
+```text
 ---
 # file: site.yml
 - include: webserver.yml
@@ -436,7 +428,7 @@ We'll update the Vagrantfile to point to the new playbook, and refactor it a bit
 
 We'll also expose port 8080, so we can open up a web browser on our Mac to see nginx serving pages.
 
-```
+```ruby
 VAGRANTFILE_API_VERSION = "2"
 
 Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
@@ -473,14 +465,14 @@ Now, rerun the provisioning on your Vagrant VM with
 
 You'll see that the index.htm file is changed:
 
-```
+```text
 TASK: [nginx | add static site index.htm file] ********************************
 changed: [webserver] => {"changed": true, "dest": "/opt/static/index.html", "gid": 0, "group": "root", "md5sum": "02f40bd936f4d308a679c0fa636e317d", "mode": "0644", "owner": "root", "size": 46, "src": "/home/vagrant/.ansible/tmp/ansible-tmp-1407855909.5-223798276574238/source", "state": "file", "uid": 0}
 ```
 
 Because there is a notification handler on that file, nginx will be restarted and verified with curl:
 
-```
+```text
 NOTIFIED: [nginx | restart nginx] *********************************************
 <127.0.0.1> REMOTE_MODULE service name=nginx state=restarted
 changed: [webserver] => {"changed": true, "name": "nginx", "state": "started"}
@@ -493,3 +485,4 @@ changed: [webserver] => {"changed": true, "cmd": "curl 127.0.0.1:8080 ", "delta"
 You can (and should!) verify from your Mac's web browser by visiting [http://localhost:8080](http://localhost:8080)
 
 
+d

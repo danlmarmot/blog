@@ -11,7 +11,7 @@ Since I was going to use Boto to get at that S3 bucket, I figured I just needed 
 
 ### The Vagrantfile
 
-```
+```ruby
 VAGRANTFILE_API_VERSION = "2"
 Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
 
@@ -33,7 +33,7 @@ end
 
 The variables for Ansible are defined in group_vars/vagrant, which pulls them in from the two environment variables set on my Mac.
 
-```
+```text
 group_name: vagrant
 ansible_ssh_user: vagrant
 
@@ -45,7 +45,7 @@ aws_secret_key: "{{ lookup('env','AWS_SECRET_ACCESS_KEY') }}"
 
 The playbook at web-vagrant.yml that defines Anisble tasks has this section in it.  Note it doesn't have:
 
-```
+```text
 - name: Copy AWS creds from Vagrant host to Vagrant VM
   hosts: all
   user: "{{ ansible_ssh_user }}"
@@ -62,16 +62,16 @@ The playbook at web-vagrant.yml that defines Anisble tasks has this section in i
 ### The boto template
 And that boto template is just this small file, placed in vagrant/templates/boto.cfg.j2
 
-```
+```ini
 [Credentials]
 aws_access_key_id = {{ aws_access_key }}
 aws_secret_access_key = {{ aws_secret_key }}
-
 ```
+
 ## Testing this out
 With Ansible, Vagrant, and Virtualbox installled, create these four files and put them in their correct places.  The directory structure should look like this:
 
-```
+```text
 .
 ├── Vagrantfile
 ├── group_vars
@@ -85,7 +85,7 @@ With Ansible, Vagrant, and Virtualbox installled, create these four files and pu
 
 Open a command prompt, and type these commands:
 
-```
+```text
 vagrant up
 vagrant ssh
 cat /etc/boto.cfg
@@ -97,7 +97,7 @@ To reprovision the Vagrant box, use "vagrant provision" to rerun the Ansible pla
 
 When you're done, dispose of the Vagrant VM with
 
-```
+```text
 vagrant destroy
 ```
 
