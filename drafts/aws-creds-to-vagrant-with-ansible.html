@@ -93,57 +93,57 @@ Dan's Random Bits            </a>
                 <p>I needed my Vagrant instance to have AWS credentials to access an S3 bucket, but didn't want to hardcode them anywhere.  I simple wanted to pass the values of the environment variables to Vagrant, and have it use those.</p>
 <p>Since I was going to use Boto to get at that S3 bucket, I figured I just needed a way to set the variables in /etc/boto.conf on the Vagrant instance.</p>
 <h3>The Vagrantfile</h3>
-<div class="highlight"><pre>VAGRANTFILE_API_VERSION = &quot;2&quot;
-Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
+<div class="highlight"><pre><span class="no">VAGRANTFILE_API_VERSION</span> <span class="o">=</span> <span class="s2">&quot;2&quot;</span>
+<span class="no">Vagrant</span><span class="o">.</span><span class="n">configure</span><span class="p">(</span><span class="no">VAGRANTFILE_API_VERSION</span><span class="p">)</span> <span class="k">do</span> <span class="o">|</span><span class="n">config</span><span class="o">|</span>
 
-  config.vm.define &quot;web&quot; do |web|
-    web.vm.box = &quot;ubuntu/trusty64&quot;
-    web.vm.provision &quot;ansible&quot; do |ansible|
-      ansible.extra_vars = &quot;@group_vars/vagrant&quot;
-      ansible.groups = {
-        &quot;vagrant&quot; =&gt; [&quot;web&quot;]
-      }     
-      ansible.playbook = &quot;web-vagrant.yml&quot;
-    end
-  end
+  <span class="n">config</span><span class="o">.</span><span class="n">vm</span><span class="o">.</span><span class="n">define</span> <span class="s2">&quot;web&quot;</span> <span class="k">do</span> <span class="o">|</span><span class="n">web</span><span class="o">|</span>
+    <span class="n">web</span><span class="o">.</span><span class="n">vm</span><span class="o">.</span><span class="n">box</span> <span class="o">=</span> <span class="s2">&quot;ubuntu/trusty64&quot;</span>
+    <span class="n">web</span><span class="o">.</span><span class="n">vm</span><span class="o">.</span><span class="n">provision</span> <span class="s2">&quot;ansible&quot;</span> <span class="k">do</span> <span class="o">|</span><span class="n">ansible</span><span class="o">|</span>
+      <span class="n">ansible</span><span class="o">.</span><span class="n">extra_vars</span> <span class="o">=</span> <span class="s2">&quot;@group_vars/vagrant&quot;</span>
+      <span class="n">ansible</span><span class="o">.</span><span class="n">groups</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s2">&quot;vagrant&quot;</span> <span class="o">=&gt;</span> <span class="o">[</span><span class="s2">&quot;web&quot;</span><span class="o">]</span>
+      <span class="p">}</span>     
+      <span class="n">ansible</span><span class="o">.</span><span class="n">playbook</span> <span class="o">=</span> <span class="s2">&quot;web-vagrant.yml&quot;</span>
+    <span class="k">end</span>
+  <span class="k">end</span>
 
-end
+<span class="k">end</span>
 </pre></div>
 
 
 <h3>The Ansible group variables</h3>
 <p>The variables for Ansible are defined in group_vars/vagrant, which pulls them in from the two environment variables set on my Mac.</p>
-<div class="highlight"><pre><span class="n">group_name</span><span class="o">:</span> <span class="n">vagrant</span>
-<span class="n">ansible_ssh_user</span><span class="o">:</span> <span class="n">vagrant</span>
+<div class="highlight"><pre>group_name: vagrant
+ansible_ssh_user: vagrant
 
-<span class="err">#</span> <span class="n">AWS</span> <span class="n">keys</span> <span class="k">for</span> <span class="n">Vagrant</span> <span class="n">are</span> <span class="n">read</span> <span class="n">from</span> <span class="n">the</span> <span class="n">Vagrant</span> <span class="n">host</span> <span class="n">and</span> <span class="n">passed</span> <span class="n">to</span> <span class="n">the</span> <span class="n">VM</span>
-<span class="n">aws_access_key</span><span class="o">:</span> <span class="s2">&quot;{{ lookup(&#39;env&#39;,&#39;AWS_ACCESS_KEY_ID&#39;) }}&quot;</span>
-<span class="n">aws_secret_key</span><span class="o">:</span> <span class="s2">&quot;{{ lookup(&#39;env&#39;,&#39;AWS_SECRET_ACCESS_KEY&#39;) }}&quot;</span>
+# AWS keys for Vagrant are read from the Vagrant host and passed to the VM
+aws_access_key: &quot;{{ lookup(&#39;env&#39;,&#39;AWS_ACCESS_KEY_ID&#39;) }}&quot;
+aws_secret_key: &quot;{{ lookup(&#39;env&#39;,&#39;AWS_SECRET_ACCESS_KEY&#39;) }}&quot;
 </pre></div>
 
 
 <h3>The Ansible playbook</h3>
 <p>The playbook at web-vagrant.yml that defines Anisble tasks has this section in it.  Note it doesn't have:</p>
-<div class="highlight"><pre><span class="x">- name: Copy AWS creds from Vagrant host to Vagrant VM</span>
-<span class="x">  hosts: all</span>
-<span class="x">  user: &quot;</span><span class="cp">{{</span> <span class="nv">ansible_ssh_user</span> <span class="cp">}}</span><span class="x">&quot;</span>
-<span class="x">  sudo: yes</span>
-<span class="x">  gather_facts: false</span>
+<div class="highlight"><pre>- name: Copy AWS creds from Vagrant host to Vagrant VM
+  hosts: all
+  user: &quot;{{ ansible_ssh_user }}&quot;
+  sudo: yes
+  gather_facts: false
 
-<span class="x">  tasks:</span>
-<span class="x">  - name: Create the boto config file</span>
-<span class="x">    template: &gt;</span>
-<span class="x">      src=vagrant/templates/boto.cfg.j2</span>
-<span class="x">      dest=/etc/boto.cfg</span>
-<span class="x">    when: group_name == &quot;vagrant&quot;</span>
+  tasks:
+  - name: Create the boto config file
+    template: &gt;
+      src=vagrant/templates/boto.cfg.j2
+      dest=/etc/boto.cfg
+    when: group_name == &quot;vagrant&quot;
 </pre></div>
 
 
 <h3>The boto template</h3>
 <p>And that boto template is just this small file, placed in vagrant/templates/boto.cfg.j2</p>
-<div class="highlight"><pre><span class="k">[Credentials]</span>
-<span class="na">aws_access_key_id</span> <span class="o">=</span> <span class="s">{{ aws_access_key }}</span>
-<span class="na">aws_secret_access_key</span> <span class="o">=</span> <span class="s">{{ aws_secret_key }}</span>
+<div class="highlight"><pre>[Credentials]
+aws_access_key_id = {{ aws_access_key }}
+aws_secret_access_key = {{ aws_secret_key }}
 </pre></div>
 
 
