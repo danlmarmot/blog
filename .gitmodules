@@ -1,0 +1,3 @@
+[submodule "pelican-themes-custom/pelican-bootstrap3"]
+	path = pelican-themes-custom/pelican-bootstrap3
+	url = git@github.com:danlmarmot/pelican-bootstrap3.git

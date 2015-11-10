@@ -3,7 +3,5 @@ venv
 *.pid
 output/
 cache
-pelican-themes
-
 
 scratch/
