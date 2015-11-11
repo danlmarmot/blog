@@ -1,5 +1,24 @@
 <?xml version="1.0" encoding="utf-8"?>
-<feed xmlns="http://www.w3.org/2005/Atom"><title>Dan's Random Bits</title><link href="https://danlmarmot.github.io/blog/" rel="alternate"></link><link href="https://danlmarmot.github.io/blog/feeds/all.atom.xml" rel="self"></link><id>https://danlmarmot.github.io/blog/</id><updated>2014-10-23T00:00:00-07:00</updated><entry><title>Listing AWS regions with Python</title><link href="https://danlmarmot.github.io/blog/2014/10/23/python-get-list-aws-regions/" rel="alternate"></link><updated>2014-10-23T00:00:00-07:00</updated><author><name>Dan McKean</name></author><id>tag:danlmarmot.github.io,2014-10-23:blog/2014/10/23/python-get-list-aws-regions/</id><summary type="html">&lt;p&gt;With Amazon's announcement of the new Frankfurt AWS region (eu-central-1), I've gone back and reworked several old 
+<feed xmlns="http://www.w3.org/2005/Atom"><title>Dan's Random Bits</title><link href="https://danlmarmot.github.io/blog/" rel="alternate"></link><link href="https://danlmarmot.github.io/blog/feeds/all.atom.xml" rel="self"></link><id>https://danlmarmot.github.io/blog/</id><updated>2015-11-23T00:00:00-08:00</updated><entry><title>Creating a sunrise/sunset calendar in Python</title><link href="https://danlmarmot.github.io/blog/2015/11/23/sunrise-sunset-calendar/" rel="alternate"></link><updated>2015-11-23T00:00:00-08:00</updated><author><name>Dan McKean</name></author><id>tag:danlmarmot.github.io,2015-11-23:blog/2015/11/23/sunrise-sunset-calendar/</id><summary type="html">&lt;p&gt;Every time daylight savings time ends I get a little sad... because I don't know when the sun will rise and set anymore.&lt;/p&gt;
+&lt;p&gt;Years ago as one of my first adventures in Python I wrote a small script to spit out an HTML calendar.  It was an ugly 
+little script, in some commented out lines I even had *C:\Program\ Files\ (x86)* blather, and I haven't used Windows for
+five years now.  &lt;/p&gt;
+&lt;p&gt;Last week I had some free time, and I finally modernized the script and made it less embarrassing.&lt;/p&gt;
+&lt;p&gt;The new improved script:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Runs on Python 3.5&lt;/li&gt;
+&lt;li&gt;Accepts command line arguments for location, year, and timezone&lt;/li&gt;
+&lt;li&gt;Follows the US Naval Observatory's guidelines for computing atmospheric refraction&lt;/li&gt;
+&lt;li&gt;Factors in daylight savings time changes for the timezone&lt;/li&gt;
+&lt;li&gt;Has been refactored into nice tidy functions (ready for unit testing, but I haven't added any yet)&lt;/li&gt;
+&lt;li&gt;Produces decent and static HTML&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;I don't know if the script works for odd cases like polar regions where the sun doesn't rise or set, but the script is
+fairly complete.&lt;/p&gt;
+&lt;p&gt;It's here on Github: &lt;a href="https://github.com/danlmarmot/sunrise-sunset-calendar"&gt;https://github.com/danlmarmot/sunrise-sunset-calendar&lt;/a&gt;   &lt;/p&gt;
+&lt;h3&gt;Example output&lt;/h3&gt;
+&lt;p&gt;And here's &lt;a href="https://htmlpreview.github.io/?https://github.com/danlmarmot/sunrise-sunset-calendar/blob/master/sun_calendar_example.html"&gt;an example of the calendar&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;Check it out!&lt;/p&gt;</summary><category term="python"></category></entry><entry><title>Listing AWS regions with Python</title><link href="https://danlmarmot.github.io/blog/2014/10/23/python-get-list-aws-regions/" rel="alternate"></link><updated>2014-10-23T00:00:00-07:00</updated><author><name>Dan McKean</name></author><id>tag:danlmarmot.github.io,2014-10-23:blog/2014/10/23/python-get-list-aws-regions/</id><summary type="html">&lt;p&gt;With Amazon's announcement of the new Frankfurt AWS region (eu-central-1), I've gone back and reworked several old 
 Python scripts that had AWS region lists hardcoded in them.&lt;/p&gt;
 &lt;p&gt;This tiny snippet code is a handly oneliner.  You can just run it as a Python file, or from the command line. &lt;/p&gt;
 &lt;p&gt;It does require the Python package boto version 2.34.0 (update, Oct 2015: this doesn't work with Amazon's newer boto3 library).&lt;/p&gt;
